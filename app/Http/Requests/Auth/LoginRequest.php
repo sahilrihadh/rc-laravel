@@ -27,22 +27,20 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        // Find user by email_id column
-        $user = \App\Models\User::where('email_id', $this->email_id)
-            ->orWhere('email_id', $this->email_id) // Try both columns
-            ->first();
-        
+        // Find user by email_id column (your column name)
+        $user = \App\Models\User::where('email_id', $this->email_id)->first();
+
         if (!$user) {
             RateLimiter::hit($this->throttleKey());
             throw ValidationException::withMessages([
-                'email_id' => 'No account found with this email.',
+                'email_id' => 'No account found with this email address.',
             ]);
         }
 
-        // Login the user
-        Auth::login($user, true); // true = remember me
+        // Login the user (no password needed as per your requirement)
+        Auth::login($user, true);
         RateLimiter::clear($this->throttleKey());
-        
+
         // Regenerate session ID to prevent fixation
         $this->session()->regenerate();
     }
@@ -66,6 +64,6 @@ class LoginRequest extends FormRequest
 
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('email_id')).'|'.$this->ip());
+        return Str::transliterate(Str::lower($this->string('email_id')) . '|' . $this->ip());
     }
 }

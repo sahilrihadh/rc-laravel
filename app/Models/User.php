@@ -11,7 +11,7 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     protected $table = 'users';
-    
+
     protected $fillable = [
         'full_name',
         'mobile_number',
@@ -24,7 +24,10 @@ class User extends Authenticatable
         'registered_at',
         'last_seen_at',
         'is_online',
-        'is_admin'
+        'is_admin',
+        'terms_accepted',
+        'sale_consent',
+        'research_consent',
     ];
 
     protected $hidden = [
@@ -36,6 +39,9 @@ class User extends Authenticatable
         'last_seen_at' => 'datetime',
         'is_online' => 'boolean',
         'is_admin' => 'boolean',
+        'terms_accepted' => 'boolean',
+        'sale_consent' => 'boolean',
+        'research_consent' => 'boolean',
     ];
 
     // Authentication using email_id

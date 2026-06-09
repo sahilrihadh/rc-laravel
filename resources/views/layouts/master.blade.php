@@ -1,47 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Webinar Solution')</title>
-    <!----------------- fonts ------------------------>
-   <link rel="stylesheet" type="text/css" href="fonts/font.css">
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-    
-    <!-- Alpine.js -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    
-    <!-- Axios -->
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    
-    <!-- Custom CSS -->
-    <style>
-        [x-cloak] { display: none !important; }
-        .loading { opacity: 0.5; pointer-events: none; }
-    </style>
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>@yield('title', 'Royal Canin')</title>
+    <link rel="icon" type="image/x-icon" href="{{ asset('assets/img/favicon.ico') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+    <!-- Custom Fonts (Assuming you have D-DIN-PRO) -->
+    <link rel="stylesheet" type="text/css" href="{{ asset('fonts/font.css') }}" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     @stack('styles')
 </head>
-<body class="bg-gray-50">
-    
+
+<body>
+    <!-- TOP BANNER -->
+    @include('partials.topbar')
+
     <!-- Header -->
     @include('partials.header')
-    
+
     <!-- Main Content -->
-    <main>
+    <main class="main pb-3">
         @yield('content')
     </main>
-    
+
     <!-- Footer -->
     @include('partials.footer')
-    
-    <script>
-        // Set CSRF token for Axios
-        axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').content;
-        axios.defaults.withCredentials = true;
-    </script>
-    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     @stack('scripts')
 </body>
+
 </html>

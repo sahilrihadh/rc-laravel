@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GI Horizons Webinar</title>
-
+    <link rel="icon" type="image/x-icon" href="{{asset('assets/img/favicon.ico')}}" />
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 
@@ -13,31 +14,16 @@
 
     <!-- External Main CSS -->
     <link rel="stylesheet" href="{{ asset('assets/css/login.min.css') }}" />
-
-    <!-- FontAwesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
 </head>
+
 <body>
     <div class="container">
-        <header class="py-3">
-            <div class="row align-items-center g-0">
-                <div class="col-lg-3 col-md-4 col-6">
-                    <img src="{{ asset('assets/img/logo-title.png') }}" 
-                        alt="Royal Canin Logo" 
-                        class="img-fluid gi-logo" />
-                </div>
-                {{-- <div class="col-6 text-end">
-                    <a href="https://www.royalcanin.com/in" target="_blank" class="website-link">Visit Royal Canin</a>
-                </div> --}}
-            </div>
-        </header>
-
         <!--Section -->
-        <div class="header-section">
+        <div class="pt-3">
             <div class="row align-items-start g-5">
-                
                 <!-- Left: Logo & Text -->
                 <div class="col-lg-6 col-12">
+                    <img src="{{ asset('assets/img/logo-title.png') }}" alt="Royal Canin Logo" class="img-fluid gi-logo" />
                     <div class="content-wrapper mt-5">
                         <h3 class="main-heading">Evidence-based updates for everyday practice.</h3>
 
@@ -65,21 +51,21 @@
 
                 <!-- Right: Cat Image -->
                 <div class="col-lg-6 col-12 d-flex justify-content-center justify-content-lg-end">
-                    <div class="cat-image-wrapper">
-                        <img src="{{ asset('assets/img/1_Vet_Wordmark_Vet_Nutrition_Range_Cat_FR.png') }}" 
-                            alt="Veterinarian with cat" 
+                    <div class="cat-image-wrapper mt-3">
+                        <img src="{{ asset('assets/img/1_Vet_Wordmark_Vet_Nutrition_Range_Cat_FR.png') }}"
+                            alt="Veterinarian with cat"
                             class="cat-image" />
                     </div>
                 </div>
 
             </div>
-        </header>
+        </div>
 
         <!-- Content Section -->
-        <div class="row g-5 mt-4">
-            
+        <div class="row gx-5 my-5">
+
             <!-- Left Column: Schedule Table -->
-            <div class="col-lg-8 col-12">
+            <div class="col-lg-8 col-12 order-2 order-lg-1">
                 <div class="table-wrapper">
                     <table class="table custom-table">
                         <thead>
@@ -133,19 +119,17 @@
             </div>
 
             <!-- Right Column: Buttons -->
-            <div class="col-lg-4 col-12 d-flex flex-column align-items-center justify-content-start gap-3">
+            <div class="col-lg-4 col-12 d-flex flex-column align-items-center justify-content-start gap-3 mb-4 mb-md-0 mb-lg-0 order-1 order-lg-2">
                 @guest
-                    <a href="{{ route('register') }}" class="btn btn-outline-custom">Register now</a>
-                    <a href="{{ route('login') }}" class="btn btn-primary-custom ">Login now</a>
+                <a href="{{ route('register') }}" class="btn btn-outline-custom">Register now</a>
+                <a href="{{ route('login') }}" class="btn btn-primary-custom ">Click to Login</a>
                 @else
-                    <a href="{{ route('webinars.index') }}" class="btn btn-primary-custom">View Webinars</a>
+                <a href="{{ route('webcast') }}" class="btn btn-primary-custom">View Webinars</a>
                 @endguest
             </div>
 
         </div>
     </div>
-
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

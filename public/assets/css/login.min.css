@@ -1,6 +1,6 @@
 :root {
-    --primary: #dc2626;
-    --primary-dark: #b91c1c;
+    --primary: #e2001a;
+    --primary-dark: #880010;
     --text-dark: #333;
     --text-gray: #444;
     --border: #e5e7eb;
@@ -27,6 +27,7 @@ body {
     font-family: var(--font-main);
     background: var(--white);
     color: var(--text-dark);
+    font-size: 16px;
 }
 
 /* ========================================
@@ -37,29 +38,12 @@ header .gi-logo {
     height: auto;
 }
 .main-heading {
-    font-size: 1.75rem;
-    font-weight: 500;
-    color: #333;
+    font-size: clamp(1.75rem, 1.2rem + 2.5vw, 2.625rem);
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: .5px;
+    color: var(--primary);
     margin-bottom: 1rem;
-}
-
-@media (min-width: 768px) {
-    .main-heading {
-        font-size: 2.25rem;
-    }
-}
-
-.text-content {
-    font-size: 0.875rem;
-    color: #4a4a4a;
-    line-height: 1.7;
-    margin-bottom: 1rem;
-}
-
-@media (min-width: 768px) {
-    .text-content {
-        font-size: 1rem;
-    }
 }
 
 .content-wrapper {
@@ -145,19 +129,19 @@ header .gi-logo {
 .btn-primary-custom {
     width: 100%;
     max-width: 320px;
-    background-color: #dc2626;
+    background-color: #e2001a;
     color: white;
     font-weight: 500;
     font-size: 1.125rem;
     padding: 12px 24px;
     border-radius: 9999px;
-    border: 2px solid #dc2626;
+    border: 2px solid #e2001a;
     transition: all 0.3s ease;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .btn-primary-custom:hover {
-    background-color: #b91c1c;
+    background-color: #880010;
     color: white;
 }
 
@@ -165,17 +149,17 @@ header .gi-logo {
     width: 100%;
     max-width: 320px;
     background-color: white;
-    color: #dc2626;
+    color: #e2001a;
     font-weight: 500;
     font-size: 1.125rem;
     padding: 12px 24px;
     border-radius: 9999px;
-    border: 2px solid #dc2626;
+    border: 2px solid #e2001a;
     transition: all 0.3s ease;
 }
 
 .btn-outline-custom:hover {
-    background-color: #dc2626;
+    background-color: #e2001a;
     color: #ffffff;
 }
 
@@ -203,7 +187,7 @@ header .gi-logo {
 }
 .register-main:before {
     content: "";
-    background-color: #dc2626;
+    background-color: #e2001a;
     position: absolute;
     top: 0%;
     left: -5%;
@@ -285,13 +269,14 @@ header .gi-logo {
     font-size: 32px;
     font-weight: 700;
     text-transform: uppercase;
+    color: var(--primary);
 }
 .form .input-group .input-group-text {
     padding: 0px;
     border: none;
 }
 .form .input-group .input-group-text .form-select {
-    background-color: #dc2626;
+    background-color: #e2001a;
     color: #fff;
     border-top-right-radius: 0px;
     border-bottom-right-radius: 0px;
@@ -309,11 +294,11 @@ header .gi-logo {
 .form-control:focus,
 .form-select:focus {
     box-shadow: none;
-    border-color: #dc2626;
+    border-color: #e2001a;
 }
 
 .btn-site {
-    background-color: #dc2626;
+    background-color: #e2001a;
     color: #fff;
     font-size: 18px;
     font-weight: 500;
@@ -321,24 +306,24 @@ header .gi-logo {
     min-width: 150px;
 }
 .form-check a {
-    color: #dc2626;
+    color: #e2001a;
 }
 
 .custom-check {
     width: 16px;
     height: 16px;
-    border: 1px solid #dc2626;
+    border: 1px solid #e2001a;
     cursor: pointer;
 }
 
 .custom-check:checked {
-    background-color: #dc2626;
-    border-color: #dc2626;
+    background-color: #e2001a;
+    border-color: #e2001a;
 }
 
 .custom-check:focus {
     box-shadow: none;
-    border-color: #dc2626;
+    border-color: #e2001a;
 }
 
 label.error {
@@ -359,7 +344,7 @@ label.error {
         line-height: 18px;
     }
     .sticky-sidebar {
-        background: #dc2626;
+        background: #e2001a;
     }
     .register-main:before,
     .register-sidebar:before {
@@ -380,17 +365,17 @@ label.error {
 /* --- Main Title --- */
 .thankyou-title {
     font-family: "D-DIN-PRO", sans-serif;
-    font-weight: 900;
+    font-weight: 700;
     font-size: 4.5rem;
     line-height: 0.9;
     letter-spacing: -1px;
 }
 .thankyou-title .text-gray {
-    font-size: 44px;
+    font-size: 42px;
     font-weight: 400;
 }
 .text-red {
-    color: #dc2626;
+    color: #e2001a;
 }
 
 .text-gray {
@@ -424,10 +409,9 @@ label.error {
 }
 
 .whats-next-title {
-    font-family: "D-DIN-PRO", sans-serif;
     font-weight: 400;
-    font-size: 44px;
-    color: #dc2626;
+    font-size: 42px;
+    color: #e2001a;
     margin-bottom: 1rem;
 }
 
@@ -484,7 +468,7 @@ label.error {
     height: 90%;
     width: 50%;
     position: absolute;
-    left: 50%;
+    left: 49%;
     top: 50%;
     z-index: 0;
     transform: translate(-50%, -50%);
@@ -494,7 +478,7 @@ label.error {
 .quote-box {
     max-width: 400px;
     background: white;
-    border: 1px solid #dc2626;
+    border: 1px solid #e2001a;
     border-radius: 30px 30px 30px 0;
     padding: 1.5rem 2rem;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
@@ -502,9 +486,9 @@ label.error {
 
 .quote-title {
     font-family: "D-DIN-PRO", sans-serif;
-    font-weight: 700;
+    font-weight: 500;
     font-size: 24px;
-    color: #dc2626;
+    color: #e2001a;
     line-height: 1.2;
     margin-bottom: 0;
 }
@@ -597,7 +581,7 @@ label.error {
 
 /* --- Login Box (Red Border) --- */
 .login-box {
-    border: 1px solid #dc2626;
+    border: 1px solid #e2001a;
     border-radius: 20px 20px 20px 0;
     padding: 40px 30px;
     background-color: white;
@@ -609,7 +593,7 @@ label.error {
     font-family: "D-DIN-PRO", sans-serif;
     font-weight: 700;
     font-size: 2.5rem;
-    color: #444;
+    color: var(--primary);
     text-transform: uppercase;
     letter-spacing: 1px;
     text-align: center;
@@ -626,14 +610,14 @@ label.error {
 }
 
 .custom-input:focus {
-    border-color: #dc2626;
+    border-color: #e2001a;
     box-shadow: 0 0 0 0.25rem rgba(220, 38, 38, 0.1);
     background-color: white;
 }
 
 /* --- Submit Button --- */
 .btn-site {
-    background-color: #dc2626;
+    background-color: #e2001a;
     color: white;
     font-family: "D-DIN-PRO", sans-serif;
     font-weight: 600;
@@ -646,7 +630,7 @@ label.error {
 }
 
 .btn-site:hover {
-    background-color: #b91c1c;
+    background-color: #880010;
     color: white;
     transform: translateY(-2px);
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
@@ -685,7 +669,7 @@ label.error {
 }
 
 .redirect-link a {
-    color: #dc2626;
+    color: #e2001a;
     text-decoration: none;
     font-weight: 600;
 }

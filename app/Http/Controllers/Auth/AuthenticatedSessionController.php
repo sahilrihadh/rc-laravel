@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
@@ -23,20 +24,23 @@ class AuthenticatedSessionController extends Controller
      * Handle an incoming authentication request.
      */
     public function store(LoginRequest $request): RedirectResponse|JsonResponse
-{
-    $request->authenticate();
-    $request->session()->regenerate();
+    {
+        $request->authenticate();
+        $request->session()->regenerate();
 
-    if ($request->wantsJson()) {
-        return response()->json([
-            'success' => true,
-            'message' => 'Login successful!',
-            'redirect_url' => route('dashboard')
-        ]);
+        // Check if request expects JSON response (AJAX request)
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Login successful!',
+                'redirect_url' => route('webcast'),
+                'user' => Auth::user()->email_id
+            ]);
+        }
+
+        // For regular form submissions
+        return redirect()->intended(route('webcast'));
     }
-
-    return redirect()->intended(route('dashboard'));
-}
 
     /**
      * Destroy an authenticated session.
@@ -46,7 +50,6 @@ class AuthenticatedSessionController extends Controller
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
-
         $request->session()->regenerateToken();
 
         return redirect('/');

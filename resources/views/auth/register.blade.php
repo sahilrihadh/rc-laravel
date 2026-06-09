@@ -14,7 +14,7 @@
    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
    <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/login.min.css') }}">
    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-   
+
    <!-- Alpine.js -->
    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
    <!-- Axios -->
@@ -22,7 +22,7 @@
 </head>
 
 <body>
-   
+
    <main class="register-main" id="main" x-data="registerForm()" x-init="initAutocomplete">
       <div class="container">
          <div class="row">
@@ -55,10 +55,10 @@
                   <div class="d-flex justify-content-lg-end justify-content-md-center justify-content-center align-items-center my-lg-4 my-md-4 my-4">
                      <img src="{{ asset('assets/img/logo-title.png') }}" class="img-fluid" alt="GI Horizons Logo">
                   </div>
-                  
+
                   <h2 class="form-title mb-lg-0 mb-md-0 mb-4">Fill the Details</h2>
-                  <h4 class="text-success"><strong>One-time registration ensures entry to all webinars.</strong></h4>
-                  
+                  <h4 class="text-success mb-3">One-time registration ensures entry to all webinars.</h4>
+
                   <!-- Alert Messages -->
                   <div x-show="message.show" x-cloak>
                      <div :class="'alert alert-' + message.type" x-text="message.text"></div>
@@ -70,7 +70,7 @@
                         <div class="col-lg-6 col-md-12 col-12 mb-3 mb-md-0 mb-lg-0">
                            <div class="input-group">
                               <span class="input-group-text">
-                                 <select class="form-select" x-model="form.name_prefix" style="border: none; background: transparent;">
+                                 <select class="form-select" x-model="form.name_prefix">
                                     <option value="Dr.">Dr.</option>
                                     <option value="Mr.">Mr.</option>
                                     <option value="Mrs.">Mrs.</option>
@@ -108,7 +108,7 @@
                               <div class="text-danger small" x-text="errors.email[0]"></div>
                            </template>
                         </div>
-                        
+
                         <div class="col-md-6 mt-3">
                            <input type="text" x-model="form.clinic_name" class="form-control" placeholder="Pet Clinic / Hospital Name *">
                            <template x-if="errors.clinic_name">
@@ -132,7 +132,9 @@
 
                      <div class="form-check mt-3">
                         <input class="form-check-input custom-check" type="checkbox" x-model="form.terms" id="termsCheck">
-                        <label class="form-check-label" for="termsCheck">Please see our <a href="https://www.mars.com/privacy" target="_blank">Privacy Statement</a> to find out how Royal Canin collect and use your data.
+                        <label class="form-check-label" for="termsCheck">
+                           Please see our <a href="https://www.mars.com/privacy" target="_blank">Privacy Statement</a> to find out how Royal Canin collect and use your data.
+                        </label>
                      </div>
                      <template x-if="errors.terms">
                         <div class="text-danger small" x-text="errors.terms[0]"></div>
@@ -149,7 +151,7 @@
                         <input class="form-check-input custom-check" type="checkbox" x-model="form.research_consent" id="researchConsent">
                         <label class="form-check-label" for="researchConsent">research to enhance product and service offerings.</label>
                      </div>
-                     
+
                      <div class="mt-3">
                         <button type="submit" class="btn btn-site" :disabled="loading" x-text="loading ? 'Processing...' : 'Submit'"></button>
                      </div>
@@ -167,7 +169,7 @@
    <!--------------- javascript  ---------------->
    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
-   
+
    <script>
       function registerForm() {
          return {
@@ -188,64 +190,69 @@
             errors: {},
             loading: false,
             message: {
-                show: false,
-                type: 'success',
-                text: ''
+               show: false,
+               type: 'success',
+               text: ''
             },
-            
+
             submitForm() {
-                this.loading = true;
-                this.errors = {};
-                this.message.show = false;
-                
-                axios.post('{{ route("register") }}', this.form)
-                    .then(response => {
-                        if (response.data.success) {
-                            this.message.type = 'success';
-                            this.message.text = response.data.message;
-                            this.message.show = true;
-                            
-                            setTimeout(() => {
-                                window.location.href = response.data.redirect_url;
-                            }, 1000);
-                        }
-                    })
-                    .catch(error => {
-                        if (error.response && error.response.status === 422) {
-                            this.errors = error.response.data.errors;
-                            this.message.type = 'danger';
-                            this.message.text = 'Please fix the errors below.';
-                        } else if (error.response && error.response.data.message) {
-                            this.message.type = 'danger';
-                            this.message.text = error.response.data.message;
-                        } else {
-                            this.message.type = 'danger';
-                            this.message.text = 'An error occurred. Please try again.';
-                        }
+               this.loading = true;
+               this.errors = {};
+               this.message.show = false;
+
+               axios.post('{{ route("register") }}', this.form)
+                  .then(response => {
+                     if (response.data.success) {
+                        this.message.type = 'success';
+                        this.message.text = response.data.message;
                         this.message.show = true;
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    })
-                    .finally(() => {
-                        this.loading = false;
-                    });
+
+                        setTimeout(() => {
+                           window.location.href = response.data.redirect_url;
+                        }, 1000);
+                     }
+                  })
+                  .catch(error => {
+                     if (error.response && error.response.status === 422) {
+                        this.errors = error.response.data.errors;
+                        this.message.type = 'danger';
+                        this.message.text = 'Please fix the errors below.';
+                     } else if (error.response && error.response.data.message) {
+                        this.message.type = 'danger';
+                        this.message.text = error.response.data.message;
+                     } else {
+                        this.message.type = 'danger';
+                        this.message.text = 'An error occurred. Please try again.';
+                     }
+                     this.message.show = true;
+                     window.scrollTo({
+                        top: 0,
+                        behavior: 'smooth'
+                     });
+                  })
+                  .finally(() => {
+                     this.loading = false;
+                  });
             },
-            
+
             initAutocomplete() {
-                $("#citySelect").autocomplete({
-                    source: "{{ route('fetch.cities') }}",
-                    minLength: 2,
-                    select: (event, ui) => {
-                        this.form.city = ui.item.value;
-                        this.form.state = ui.item.state;
-                    }
-                });
+               $("#citySelect").autocomplete({
+                  source: "{{ route('fetch.cities') }}",
+                  minLength: 2,
+                  select: (event, ui) => {
+                     this.form.city = ui.item.value;
+                     this.form.state = ui.item.state;
+                  }
+               });
             }
          }
       }
    </script>
-   
+
    <style>
-      [x-cloak] { display: none !important; }
+      [x-cloak] {
+         display: none !important;
+      }
    </style>
 </body>
 
