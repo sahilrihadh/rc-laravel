@@ -10,7 +10,7 @@ class Poll extends Model
     use HasFactory;
 
     protected $fillable = [
-        'webinar_session_id', 'question', 'is_active', 'expires_at'
+        'question', 'is_active', 'expires_at'
     ];
 
     protected $casts = [

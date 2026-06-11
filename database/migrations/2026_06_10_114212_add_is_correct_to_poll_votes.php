@@ -11,9 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('webinar_sessions', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+        Schema::table('poll_votes', function (Blueprint $table) {
+            $table->boolean('is_correct')->default(false)->after('poll_option_id');
         });
     }
 
@@ -22,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('webinar_sessions');
+        Schema::table('poll_votes', function (Blueprint $table) {
+            $table->dropColumn('is_correct');
+        });
     }
 };

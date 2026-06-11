@@ -17,6 +17,16 @@
           Polls
         </a>
 
+        <a class="nav-link {{ request()->routeIs('admin.login-details.*') ? 'active' : '' }}" href="{{ route('admin.login-details.index') }}">
+          <div class="sb-nav-link-icon"><i class="fas fa-history"></i></div>
+          Login Details
+        </a>
+
+        <a class="nav-link {{ request()->routeIs('admin.previous-sessions.*') ? 'active' : '' }}" href="{{ route('admin.previous-sessions.index') }}">
+          <div class="sb-nav-link-icon"><i class="fas fa-calendar-alt"></i></div>
+          Previous Sessions
+        </a>
+
         @if(Auth::user()->is_admin)
         <a class="nav-link {{ request()->routeIs('admin.visitors.*') ? 'active' : '' }}" href="{{ route('admin.visitors.index') }}">
           <div class="sb-nav-link-icon"><i class="fas fa-user"></i></div>

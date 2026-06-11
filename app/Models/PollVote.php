@@ -10,11 +10,15 @@ class PollVote extends Model
     use HasFactory;
 
     protected $fillable = [
-        'poll_id', 'user_id', 'poll_option_id', 'voted_at'
+        'poll_id', 
+        'poll_option_id', 
+        'user_id', 
+        'session_id',
+        'is_correct'  // Add this field
     ];
 
     protected $casts = [
-        'voted_at' => 'datetime'
+        'is_correct' => 'boolean'  // Cast to boolean
     ];
 
     public function poll()
@@ -22,13 +26,13 @@ class PollVote extends Model
         return $this->belongsTo(Poll::class);
     }
 
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
-
     public function option()
     {
         return $this->belongsTo(PollOption::class, 'poll_option_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

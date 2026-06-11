@@ -6,6 +6,8 @@
 <link rel="stylesheet" type="text/css" href="{{ asset('fonts/font.css') }}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/glightbox/3.2.0/css/glightbox.css">
 <link href="{{ asset('assets/css/main.min.css') }}" rel="stylesheet">
+<!-- Custom Fonts -->
+    <link rel="stylesheet" type="text/css" href="{{ asset('assets/fonts/font.css') }}" />
 @endpush
 
 @section('content')

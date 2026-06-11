@@ -3,68 +3,222 @@
 @section('title', 'Questions')
 @section('page-title', 'Questions Management')
 
+@section('breadcrumb')
+<li class="breadcrumb-item active">Questions</li>
+@endsection
+
 @section('content')
 <div class="card">
   <div class="card-header">
-    <h5>All Questions & Answers</h5>
+    <h5 class="mb-0">All Questions & Answers</h5>
   </div>
   <div class="card-body">
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="card bg-primary text-white">
+          <div class="card-body">
+            <h5 class="card-title">Total Questions</h5>
+            <h3 class="mb-0">{{ $stats['total'] }}</h3>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card bg-success text-white">
+          <div class="card-body">
+            <h5 class="card-title">Answered</h5>
+            <h3 class="mb-0">{{ $stats['answered'] }}</h3>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card bg-warning text-white">
+          <div class="card-body">
+            <h5 class="card-title">Pending</h5>
+            <h3 class="mb-0">{{ $stats['pending'] }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bulk Actions Bar -->
+    <div id="bulkActionsBar" class="alert alert-info" style="display:none;">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <i class="fas fa-check-circle"></i> <span id="selectedCount">0</span> questions selected
+        </div>
+        <div>
+          <button class="btn btn-sm btn-success" id="selectAllBtn">Select All</button>
+          <button class="btn btn-sm btn-secondary" id="clearSelectionBtn">Clear</button>
+          <button class="btn btn-sm btn-danger" id="confirmBulkDelete">
+            <i class="fas fa-trash"></i> Delete Selected
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Questions Table -->
     <div class="table-responsive">
-      <table class="table table-bordered table-hover">
+      <table class="table table-bordered table-hover" id="questionsTable">
         <thead>
           <tr>
+            <th width="50">
+              <input type="checkbox" id="selectAllCheckbox">
+            </th>
             <th>ID</th>
             <th>User</th>
             <th>Email</th>
-            <th>Question</th>
-            <th>Answer / Reply</th>
-            <th>Submitted On</th>
+            <th width="30%">Question</th>
+            <th width="30%">Answer / Reply</th>
+            <th>Status</th>
+            <th>Submitted</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           @forelse($questions as $question)
-          <tr>
+          <tr class="{{ !$question->is_answered ? 'table-warning' : '' }}">
+            <td>
+              <input type="checkbox" class="record-checkbox" value="{{ $question->id }}">
+            </td>
             <td>{{ $question->id }}</td>
             <td>
-              {{ $question->user->full_name ?? $question->name ?? 'N/A' }}
+              <strong>{{ $question->user->full_name ?? 'N/A' }}</strong>
             </td>
-            <td>{{ $question->user->email_id ?? $question->email_id ?? 'N/A' }}</td>
+            <td>{{ $question->user->email_id ?? 'N/A' }}</td>
             <td>
-              <div style="max-width: 300px; word-wrap: break-word;">
-                {{ $question->question ?? $question->question_input }}
+              <div style="word-wrap: break-word;">
+                {{ $question->question_text ?? $question->question_input }}
               </div>
             </td>
             <td>
-              <div style="max-width: 300px; word-wrap: break-word;">
-                @if($question->answer)
-                {{ $question->answer }}
-                @else
-                <span class="badge bg-warning">Not answered yet</span>
-                @endif
-              </div>
+              @if($question->is_answered)
+                <div class="answer-box p-2 bg-light rounded">
+                  <p class="mb-0">{{ $question->answer_text }}</p>
+                </div>
+              @else
+                <span class="badge bg-warning">Awaiting answer</span>
+              @endif
+            </td>
+            <td>
+              @if($question->is_answered)
+                <span class="badge bg-success">Answered</span>
+              @else
+                <span class="badge bg-warning">Pending</span>
+              @endif
             </td>
             <td>{{ $question->created_at->format('d M Y h:i A') }}</td>
             <td>
-              <button class="btn btn-sm btn-danger delete-question"
-                data-id="{{ $question->id }}"
-                data-question="{{ Str::limit($question->question ?? $question->question_input, 50) }}">
-                <i class="fas fa-trash"></i> Delete
-              </button>
+              <div class="btn-group" role="group">
+                @if(!$question->is_answered)
+                  <button class="btn btn-sm btn-primary answer-question" 
+                          data-id="{{ $question->id }}"
+                          data-question="{{ $question->question_text ?? $question->question_input }}"
+                          data-user="{{ $question->user->full_name ?? 'N/A' }}">
+                    <i class="fas fa-reply"></i> Reply
+                  </button>
+                @endif
+                <button class="btn btn-sm btn-info view-question" 
+                        data-id="{{ $question->id }}"
+                        data-question="{{ $question->question_text ?? $question->question_input }}"
+                        data-user="{{ $question->user->full_name ?? 'N/A' }}"
+                        data-email="{{ $question->user->email_id ?? 'N/A' }}"
+                        data-answer="{{ $question->answer_text ?? '' }}"
+                        data-status="{{ $question->is_answered ? 'Answered' : 'Pending' }}">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-danger delete-question" 
+                        data-id="{{ $question->id }}"
+                        data-question="{{ Str::limit($question->question_text ?? $question->question_input, 50) }}">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
             </td>
           </tr>
           @empty
           <tr>
-            <td colspan="7" class="text-center">No questions found</td>
+            <td colspan="9" class="text-center">No questions found</td>
           </tr>
           @endforelse
         </tbody>
       </table>
     </div>
 
-    <!-- Pagination -->
     <div class="d-flex justify-content-center mt-4">
       {{ $questions->links() }}
+    </div>
+  </div>
+</div>
+
+<!-- Answer Modal -->
+<div class="modal fade" id="answerModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Reply to Question</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">User:</label>
+          <p class="fw-bold" id="modalUserName"></p>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Question:</label>
+          <div class="p-3 bg-light rounded" id="modalQuestionText"></div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Your Answer:</label>
+          <textarea id="answerText" class="form-control" rows="5" placeholder="Type your answer here..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="submitAnswer">
+          <i class="fas fa-paper-plane"></i> Submit Answer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- View Modal -->
+<div class="modal fade" id="viewModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Question Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">User:</label>
+          <p class="fw-bold" id="viewUserName"></p>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Email:</label>
+          <p id="viewUserEmail"></p>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Status:</label>
+          <p id="viewStatus"></p>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Submitted On:</label>
+          <p id="viewSubmittedAt"></p>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Question:</label>
+          <div class="p-3 bg-light rounded" id="viewQuestionText"></div>
+        </div>
+        <div class="mb-3" id="answerSection" style="display:none;">
+          <label class="form-label">Answer:</label>
+          <div class="p-3 bg-success text-white rounded" id="viewAnswerText"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
     </div>
   </div>
 </div>
@@ -72,128 +226,245 @@
 
 @push('scripts')
 <script>
-  $(document).ready(function() {
-    // Delete question with SweetAlert
-    $('.delete-question').on('click', function(e) {
-      e.preventDefault();
-
-      var questionId = $(this).data('id');
-      var questionText = $(this).data('question');
-
-      swal({
-        title: "Are you sure?",
-        text: "You want to delete question: \"" + questionText + "\"?",
-        type: "warning",
-        showCancelButton: true,
-        confirmButtonColor: "#DD6B55",
-        confirmButtonText: "Yes, delete it!",
-        cancelButtonText: "No, cancel!",
-        closeOnConfirm: false,
-        closeOnCancel: false
-      }, function(isConfirm) {
-        if (isConfirm) {
-          $.ajax({
-            url: '/admin/questions/' + questionId,
-            type: 'DELETE',
-            data: {
-              _token: '{{ csrf_token() }}'
-            },
-            success: function(response) {
-              if (response.success) {
-                swal({
-                  title: "Deleted!",
-                  text: response.message,
-                  type: "success",
-                  timer: 2000,
-                  showConfirmButton: false
-                });
-
-                // Remove row from table
-                $('button[data-id="' + questionId + '"]').closest('tr').fadeOut(300, function() {
-                  $(this).remove();
-
-                  // If no rows left, show empty message
-                  if ($('tbody tr:visible').length === 0) {
-                    location.reload();
-                  }
-                });
-
-                showToast(response.message, 'success');
-              }
-            },
-            error: function(xhr) {
-              var message = xhr.responseJSON?.message || "Failed to delete question";
-              swal({
-                title: "Error!",
-                text: message,
-                type: "error",
+$(document).ready(function() {
+    let selectedIds = [];
+    let currentQuestionId = null;
+    
+    // Answer button click
+    $('.answer-question').on('click', function() {
+        currentQuestionId = $(this).data('id');
+        $('#modalUserName').text($(this).data('user'));
+        $('#modalQuestionText').text($(this).data('question'));
+        $('#answerText').val('');
+        $('#answerModal').modal('show');
+    });
+    
+    // View button click
+    $('.view-question').on('click', function() {
+        $('#viewUserName').text($(this).data('user'));
+        $('#viewUserEmail').text($(this).data('email'));
+        $('#viewQuestionText').text($(this).data('question'));
+        $('#viewStatus').html($(this).data('status') === 'Answered' ? '<span class="badge bg-success">Answered</span>' : '<span class="badge bg-warning">Pending</span>');
+        $('#viewSubmittedAt').text($(this).closest('tr').find('td:eq(7)').text());
+        
+        if ($(this).data('answer')) {
+            $('#viewAnswerText').text($(this).data('answer'));
+            $('#answerSection').show();
+        } else {
+            $('#answerSection').hide();
+        }
+        
+        $('#viewModal').modal('show');
+    });
+    
+    // Submit Answer
+    $('#submitAnswer').on('click', function() {
+        var answerText = $('#answerText').val().trim();
+        
+        if (!answerText) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Empty Answer',
+                text: 'Please enter an answer before submitting.',
                 timer: 2000,
                 showConfirmButton: false
-              });
-              showToast(message, 'error');
-            }
-          });
-        } else {
-          swal({
-            title: "Cancelled",
-            text: "Question deletion cancelled",
-            type: "error",
-            timer: 1500,
-            showConfirmButton: false
-          });
+            });
+            return;
         }
-      });
-    });
-
-    // Toast notification function
-    function showToast(message, type) {
-      var bgColor = type === 'success' ? '#28a745' : '#dc3545';
-      var icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
-
-      var toastHtml = `
-                <div class="toast-notification" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; background: ${bgColor}; color: white; padding: 12px 20px; border-radius: 5px; animation: slideIn 0.3s ease; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
-                    <i class="fas ${icon}"></i>
-                    ${message}
-                </div>
-            `;
-
-      $('body').append(toastHtml);
-
-      setTimeout(function() {
-        $('.toast-notification').fadeOut(300, function() {
-          $(this).remove();
+        
+        Swal.fire({
+            title: 'Submit Answer?',
+            text: "This answer will be visible to the user.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, submit it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '/admin/questions/' + currentQuestionId + '/answer',
+                    type: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                        answer_text: answerText
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success!',
+                                text: response.message,
+                                timer: 1500,
+                                showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        }
+                    },
+                    error: function() {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: 'Failed to submit answer',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    }
+                });
+            }
         });
-      }, 3000);
+    });
+    
+    // Select All checkbox functionality
+    $('#selectAllCheckbox').on('change', function() {
+        $('.record-checkbox').prop('checked', $(this).is(':checked'));
+        updateSelectedRecords();
+    });
+    
+    // Individual checkbox change
+    $(document).on('change', '.record-checkbox', function() {
+        updateSelectedRecords();
+    });
+    
+    // Update selected records
+    function updateSelectedRecords() {
+        selectedIds = [];
+        $('.record-checkbox:checked').each(function() {
+            selectedIds.push($(this).val());
+        });
+        
+        if (selectedIds.length > 0) {
+            $('#bulkActionsBar').show();
+            $('#selectedCount').text(selectedIds.length);
+            $('#bulkDeleteBtn').show();
+        } else {
+            $('#bulkActionsBar').hide();
+            $('#bulkDeleteBtn').hide();
+        }
+        
+        var totalCheckboxes = $('.record-checkbox').length;
+        var checkedCheckboxes = $('.record-checkbox:checked').length;
+        $('#selectAllCheckbox').prop('checked', totalCheckboxes === checkedCheckboxes);
     }
-  });
+    
+    // Select All button
+    $('#selectAllBtn').on('click', function() {
+        $('.record-checkbox').prop('checked', true);
+        updateSelectedRecords();
+    });
+    
+    // Clear Selection button
+    $('#clearSelectionBtn').on('click', function() {
+        $('.record-checkbox').prop('checked', false);
+        updateSelectedRecords();
+    });
+    
+    // Bulk Delete
+    $('#confirmBulkDelete, #bulkDeleteBtn').on('click', function() {
+        if (selectedIds.length === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'No Selection',
+                text: 'Please select records to delete',
+                timer: 2000,
+                showConfirmButton: false
+            });
+            return;
+        }
+        
+        Swal.fire({
+            title: 'Are you sure?',
+            text: `You are about to delete ${selectedIds.length} question(s). This action cannot be undone!`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete them!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '/admin/questions/bulk-delete',
+                    type: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                        ids: selectedIds
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Deleted!',
+                                text: response.message,
+                                timer: 1500,
+                                showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        }
+                    },
+                    error: function() {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: 'Failed to delete records',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    }
+                });
+            }
+        });
+    });
+    
+    // Delete single record
+    $(document).on('click', '.delete-question', function() {
+        var id = $(this).data('id');
+        var questionText = $(this).data('question');
+        
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "Delete question: \"" + questionText + "\"?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '/admin/questions/' + id,
+                    type: 'DELETE',
+                    data: {
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Deleted!',
+                                text: response.message,
+                                timer: 1500,
+                                showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        }
+                    },
+                    error: function() {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: 'Failed to delete question',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    }
+                });
+            }
+        });
+    });
+    
+});
 </script>
-
-<style>
-  @keyframes slideIn {
-    from {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
-  }
-
-  .table-hover tbody tr:hover {
-    background-color: #f5f5f5;
-  }
-
-  .table td {
-    vertical-align: middle;
-  }
-
-  .badge-warning {
-    background-color: #ffc107;
-    color: #000;
-    padding: 5px 10px;
-    border-radius: 4px;
-  }
-</style>
 @endpush

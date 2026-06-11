@@ -10,7 +10,11 @@ class Question extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'webinar_session_id', 'question_text', 'asked_at', 'is_answered', 'answer_text'
+        'user_id', 
+        'question_text', 
+        'asked_at', 
+        'is_answered', 
+        'answer_text'
     ];
 
     protected $casts = [
@@ -21,10 +25,5 @@ class Question extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function webinarSession()
-    {
-        return $this->belongsTo(WebinarSession::class);
     }
 }

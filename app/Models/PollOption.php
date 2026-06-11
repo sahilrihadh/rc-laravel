@@ -10,7 +10,12 @@ class PollOption extends Model
     use HasFactory;
 
     protected $fillable = [
-        'poll_id', 'option_text', 'vote_count'
+        'poll_id', 'option_text', 'vote_count', 'is_correct'
+    ];
+
+    protected $casts = [
+        'vote_count' => 'integer',
+        'is_correct' => 'boolean'
     ];
 
     public function poll()
@@ -21,11 +26,5 @@ class PollOption extends Model
     public function votes()
     {
         return $this->hasMany(PollVote::class);
-    }
-
-    // Increment vote count
-    public function incrementVotes()
-    {
-        $this->increment('vote_count');
     }
 }

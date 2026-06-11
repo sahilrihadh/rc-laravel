@@ -231,22 +231,4 @@ return [
 
     'serialization' => 'json',
 
-    'admin' => [
-        'driver' => env('SESSION_DRIVER', 'file'),
-        'lifetime' => env('SESSION_LIFETIME', 120),
-        'expire_on_close' => false,
-        'encrypt' => false,
-        'files' => storage_path('framework/sessions/admin'),
-        'connection' => env('SESSION_CONNECTION'),
-        'table' => 'sessions',
-        'store' => env('SESSION_STORE'),
-        'lottery' => [2, 100],
-        'cookie' => 'admin_session',  // Different cookie name
-        'path' => '/admin',            // Only for admin paths
-        'domain' => env('SESSION_DOMAIN', null),
-        'secure' => env('SESSION_SECURE_COOKIE'),
-        'http_only' => true,
-        'same_site' => 'lax',
-    ],
-
 ];

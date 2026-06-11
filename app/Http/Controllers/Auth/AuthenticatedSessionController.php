@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
+use App\Models\LoginDetails;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -27,6 +28,16 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
         $request->session()->regenerate();
+
+        // Get user after authentication
+        $user = Auth::user();
+
+        // Track login
+        LoginDetail::create([
+            'user_id' => $user->id,
+            'login_time' => now(),
+            'logout_time' => null
+        ]);
 
         // Check if request expects JSON response (AJAX request)
         if ($request->wantsJson() || $request->ajax()) {
@@ -47,6 +58,22 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        // Get user BEFORE logging out
+        $user = Auth::user();
+
+        if ($user) {
+            // Update active session with logout time
+            $activeSession = LoginDetail::where('user_id', $user->id)
+                ->whereNull('logout_time')
+                ->first();
+                
+            if ($activeSession) {
+                $activeSession->update([
+                    'logout_time' => now()
+                ]);
+            }
+        }
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();

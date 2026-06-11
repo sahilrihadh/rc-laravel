@@ -10,6 +10,8 @@ use App\Http\Controllers\Admin\PollController;
 use App\Http\Controllers\Admin\VisitorController;
 use App\Http\Controllers\Admin\CertificateController;
 use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\LoginDetailController;  // Add this
+use App\Http\Controllers\Admin\PreviousSessionController;  // Add this
 
 // ==================== PUBLIC ROUTES ====================
 
@@ -37,6 +39,7 @@ Route::prefix('admin')->name('admin.')->middleware('admin')->group(function () {
     });
 
     Route::middleware('auth:admin')->group(function () {
+
         Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::post('logout', [AdminAuthController::class, 'logout'])->name('logout');
 
@@ -46,8 +49,28 @@ Route::prefix('admin')->name('admin.')->middleware('admin')->group(function () {
         Route::get('users', [UserController::class, 'index'])->name('users');
         Route::delete('users/{id}', [UserController::class, 'destroy'])->name('users.destroy');
 
-        Route::get('questions', [QuestionController::class, 'index'])->name('questions');
-        Route::delete('questions/{id}', [QuestionController::class, 'destroy'])->name('questions.destroy');
+        // In routes/web.php inside admin group
+Route::get('questions', [QuestionController::class, 'index'])->name('questions');
+Route::get('questions/{id}', [QuestionController::class, 'show'])->name('questions.show');
+Route::post('questions/{id}/answer', [QuestionController::class, 'answer'])->name('questions.answer');
+Route::delete('questions/{id}', [QuestionController::class, 'destroy'])->name('questions.destroy');
+Route::post('questions/bulk-delete', [QuestionController::class, 'bulkDelete'])->name('questions.bulk-delete');
+
+        // Login Details Routes - Using the imported class
+        Route::get('/login-details', [LoginDetailController::class, 'index'])->name('login-details.index');
+        Route::get('/login-details/{id}', [LoginDetailController::class, 'show'])->name('login-details.show');
+        Route::get('/login-details/export/csv', [LoginDetailController::class, 'export'])->name('login-details.export');
+        Route::delete('/login-details/{id}', [LoginDetailController::class, 'destroy'])->name('login-details.destroy');
+        Route::post('/login-details/bulk-delete', [LoginDetailController::class, 'bulkDelete'])->name('login-details.bulk-delete');
+        Route::post('/login-details/clear-old', [LoginDetailController::class, 'clearOldRecords'])->name('login-details.clear-old');
+
+        // Previous Sessions Routes
+Route::get('/previous-sessions', [PreviousSessionController::class, 'index'])->name('previous-sessions.index');
+Route::get('/previous-sessions/{id}', [PreviousSessionController::class, 'show'])->name('previous-sessions.show');
+Route::post('/previous-sessions/{id}/resend-certificate', [PreviousSessionController::class, 'resendCertificate'])->name('previous-sessions.resend-certificate');
+Route::delete('/previous-sessions/{id}', [PreviousSessionController::class, 'destroy'])->name('previous-sessions.destroy');
+Route::post('/previous-sessions/bulk-delete', [PreviousSessionController::class, 'bulkDelete'])->name('previous-sessions.bulk-delete');
+Route::post('/previous-sessions/clear-old', [PreviousSessionController::class, 'clearOldRecords'])->name('previous-sessions.clear-old');
     });
 });
 
@@ -65,10 +88,12 @@ Route::middleware('auth')->group(function () {
     // AJAX Routes for Webcast
     Route::post('/submit-question', [PageController::class, 'submitQuestion'])->name('submit-question');
     Route::post('/get-questions', [PageController::class, 'getQuestions'])->name('get-questions');
-    Route::post('/check-poll', [PageController::class, 'checkPoll'])->name('check-poll');
-    Route::post('/submit-vote', [PageController::class, 'submitVote'])->name('submit-vote');
+    Route::post('/check-poll', [PageController::class, 'checkPoll'])->name('check.poll');
+    Route::post('/submit-vote', [PageController::class, 'submitVote'])->name('submit.poll.vote');
     Route::post('/store-reaction', [PageController::class, 'storeReaction'])->name('store-reaction');
     Route::post('/track-activity', [PageController::class, 'trackActivity'])->name('track-activity');
+    Route::post('/track-login', [PageController::class, 'trackLogin'])->name('track-login');
+    Route::post('/track-logout', [PageController::class, 'trackLogout'])->name('track-logout');
 
     // Logout
     Route::post('/logout', function () {

@@ -12,7 +12,7 @@
         <div id="message"></div>
         <form id="question-form" method="POST" action="{{ route('submit-question') }}">
           @csrf
-          <textarea class="form-control input-rounded" name="question_input" rows="4" placeholder="Enter your question and click on submit!"></textarea>
+          <textarea class="form-control input-rounded" name="question_input" id="question_input" rows="4" placeholder="Enter your question and click on submit!"></textarea>
           <div class="mt-3">
             <button type="submit" class="btn btn-canin">Submit Question</button>
           </div>

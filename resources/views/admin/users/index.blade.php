@@ -7,7 +7,7 @@
 <!-- Stats Cards -->
 <div class="row mb-4">
   <div class="col-md-3">
-    <div class="card bg-primary text-white">
+    <div class="card bg-primary text-white h-100">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-center">
           <div>

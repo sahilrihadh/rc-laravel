@@ -5,15 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Config;
 
 class AuthController extends Controller
 {
     public function showLoginForm()
     {
-        // Set admin session config
-        Config::set('session', config('session.admin'));
-
         if (Auth::guard('admin')->check()) {
             return redirect()->route('admin.dashboard');
         }
@@ -22,8 +18,8 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        // Set admin session config
-        Config::set('session', config('session.admin'));
+        // REMOVE these lines - they're causing the error
+        // Config::set('session', config('session.admin'));
 
         $request->validate([
             'username' => 'required|string',
@@ -46,8 +42,8 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        // Set admin session config
-        Config::set('session', config('session.admin'));
+        // REMOVE these lines - they're causing the error
+        // Config::set('session', config('session.admin'));
 
         Auth::guard('admin')->logout();
         $request->session()->invalidate();

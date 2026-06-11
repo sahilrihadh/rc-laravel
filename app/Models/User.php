@@ -75,4 +75,42 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserSession::class);
     }
+
+    // Update last seen timestamp
+    public function updateLastSeen()
+    {
+        $this->update([
+            'last_seen_at' => now(),
+            'is_online' => true
+        ]);
+    }
+
+    // Mark user as offline
+    public function markOffline()
+    {
+        $this->update([
+            'is_online' => false
+        ]);
+    }
+
+    // Check if user is online (last seen within last 5 minutes)
+    public function isOnline()
+    {
+        return $this->is_online && $this->last_seen_at && $this->last_seen_at->gt(now()->subMinutes(5));
+    }
+
+    // Get online users count
+    public static function getOnlineCount()
+    {
+        return static::where('is_online', true)
+            ->where('last_seen_at', '>=', now()->subMinutes(5))
+            ->count();
+    }
+
+    // Relationship with reactions
+    public function reactions()
+    {
+        return $this->hasMany(Reaction::class);
+    }
+
 }
