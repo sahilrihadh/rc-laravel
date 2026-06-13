@@ -1,0 +1,1 @@
+<?php /**PATH /Users/sahilrihadh/Development/royalcanin/webinar-solution/resources/views/partials/footer.blade.php ENDPATH**/ ?>
