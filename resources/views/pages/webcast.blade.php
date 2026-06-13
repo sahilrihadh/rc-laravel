@@ -22,7 +22,6 @@
         0% {
             transform: rotate(0deg);
         }
-
         100% {
             transform: rotate(360deg);
         }
@@ -69,6 +68,9 @@
 
 <!-- Question Sidebar -->
 @include('partials.question-sidebar')
+
+@include('partials.announcement-modal')
+
 @endsection
 
 @push('scripts')
@@ -76,408 +78,255 @@
 <script src="https://unpkg.com/simplebar@latest/dist/simplebar.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
     // ==================== CONFIGURATION ====================
     const userId = '{{ Auth::id() }}';
     const csrfToken = '{{ csrf_token() }}';
 
-    // Set Axios defaults
     axios.defaults.headers.common['X-CSRF-TOKEN'] = csrfToken;
     axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
     // ==================== PUSHER SETUP ====================
-    const pusher = new Pusher('aca7938088f631ee68de', {
+    const pusher = new Pusher('bef55ec683a7039d70a8', {
         cluster: 'ap2',
         authEndpoint: '/broadcasting/auth',
-        auth: {
-            headers: {
-                'X-CSRF-TOKEN': csrfToken
-            }
-        }
+        auth: { headers: { 'X-CSRF-TOKEN': csrfToken } }
     });
 
     const pollChannel = pusher.subscribe('poll-channel');
     const questionChannel = pusher.subscribe('question-channel');
+    const announcementChannel = pusher.subscribe('announcements');
 
-    // ==================== REACTION RATE LIMITING ====================
-    const reactionCooldown = {
-        love: false,
-        like: false,
-        applause: false,
-        lastReactionTime: 0,
-        minInterval: 3000, // 3 seconds minimum between ANY reactions
-        
-        // Check if specific reaction type can be submitted
-        canSubmit: function(type) {
-            const now = Date.now();
-            // Check global cooldown
-            if (now - this.lastReactionTime < this.minInterval) {
-                console.log(`Please wait ${Math.ceil((this.minInterval - (now - this.lastReactionTime))/1000)} seconds before reacting again`);
-                return false;
-            }
-            // Check specific reaction cooldown
-            if (this[type]) {
-                console.log(`You already submitted a ${type} reaction recently`);
-                return false;
-            }
-            return true;
-        },
-        
-        // Set cooldown for reaction type
-        setCooldown: function(type) {
-            const now = Date.now();
-            this.lastReactionTime = now;
-            this[type] = true;
-            
-            // Reset specific reaction cooldown after 10 seconds
-            setTimeout(() => {
-                this[type] = false;
-            }, 10000);
-        }
-    };
-
-    // Store submitted reactions in session to prevent duplicate database entries
-    let submittedReactions = JSON.parse(sessionStorage.getItem('submittedReactions') || '{}');
-
-    // ==================== INITIALIZATION ====================
-    $(document).ready(function() {
-        initializeSidebars();
-        initializePoll();
-        initializeQuestions();
-        initializeReactions();
-        initializeActivityTracking();
+    // ==================== ANNOUNCEMENTS ====================
+    announcementChannel.bind('show-announcement', function(data) {
+        document.getElementById('announcementModalBody').innerHTML = `
+            <div class="text-center mb-3">
+                <i class="fas fa-bullhorn" style="font-size: 48px; color: #dc2626;"></i>
+            </div>
+            <h4 class="text-danger text-center mb-3">${escapeHtml(data.title)}</h4>
+            <p class="text-center mb-0">${escapeHtml(data.description)}</p>
+            <hr>
+            <small class="text-muted d-block text-center">${new Date().toLocaleString()}</small>
+        `;
+        new bootstrap.Modal(document.getElementById('announcementModal')).show();
     });
 
-    // ==================== SIDEBAR FUNCTIONS ====================
-    function initializeSidebars() {
-        $('#dismissPollSidebar, #dismissQuestionSidebar').on('click', function() {
-            $('#pollSidebar, #questionSidebar').removeClass('active');
-        });
-
-        $('#pollSidebarCollapse').on('click', function() {
-            $('#pollSidebar').addClass('active');
-        });
-
-        $('#questionSidebarCollapse').on('click', function() {
-            $('#questionSidebar').addClass('active');
-        });
-    }
+    announcementChannel.bind('hide-announcement', function() {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('announcementModal'));
+        if (modal) modal.hide();
+    });
 
     // ==================== POLL FUNCTIONS ====================
-    function initializePoll() {
-        pollChannel.bind('poll-status-changed', function(data) {
-            console.log('Poll status changed:', data);
-            checkPoll();
-        });
+    let isPollSubmitting = false;
 
-        // Initial poll check
-        checkPoll();
-    }
-
-    async function checkPoll() {
-        try {
-            const response = await axios.post('{{ route("check.poll") }}', {
-                request: 1
-            });
-
-            // Handle response - Laravel returns JSON with poll.html
-            if (response.data && response.data.has_poll === true && response.data.poll && response.data.poll.html) {
-                // Active poll with HTML
-                $('#poll').html(response.data.poll.html);
-                $('#pollSidebar').addClass('active');
-            } 
-            else if (response.data === 'NO_POLL_ACTIVE' || response.data === '') {
-                // No active poll
-                closePoll();
-            }
-            else if (typeof response.data === 'string' && response.data.length > 0) {
-                // Fallback: treat as HTML string
-                $('#poll').html(response.data);
-                $('#pollSidebar').addClass('active');
-            }
-            else {
-                closePoll();
-            }
-        } catch (error) {
-            console.error('Error checking poll:', error);
-            closePoll();
-        }
+    function loadPoll() {
+        axios.post('{{ route("check.poll") }}', { request: 1 })
+            .then(res => {
+                if (res.data && res.data.has_poll && res.data.poll.html) {
+                    $('#poll').html(res.data.poll.html);
+                    $('#pollSidebar').addClass('active');
+                } else {
+                    closePoll();
+                }
+            })
+            .catch(err => console.error('Poll error:', err));
     }
 
     function closePoll() {
         $("#pollSidebar").removeClass("active");
-        $('#poll').html('<div class="alert alert-info">No active poll available at the moment.</div>');
+        $('#poll').html('<div class="alert alert-info">No active poll available.</div>');
     }
 
-    // Submit vote handler
-    $(document).on("click", "#but_vote", async function(e) {
+    $(document).on('click', '#but_vote', async function(e) {
         e.preventDefault();
-
-        const checkedPoll = $("#poll input[name='poll']:checked").val();
-
-        if (!checkedPoll) {
+        if (isPollSubmitting) return;
+        
+        const selectedOption = $("#poll input[name='poll']:checked").val();
+        if (!selectedOption) {
             alert('Please select an option.');
             return;
         }
 
+        isPollSubmitting = true;
         const $btn = $(this);
         const originalText = $btn.text();
+        $btn.prop('disabled', true).html('<span class="loading-spinner"></span> Submitting...');
 
         try {
-            $btn.prop('disabled', true).html('<span class="loading-spinner"></span> Submitting...');
-
-            const response = await axios.post('{{ route("submit.poll.vote") }}', {
+            const res = await axios.post('{{ route("submit.poll.vote") }}', {
                 request: 2,
-                poll: checkedPoll
+                poll: selectedOption,
+                poll_id: $("#poll input[name='poll_id']").val()
             });
 
-            if (response.data.success === true || response.data == 1) {
-                await checkPoll(); // Refresh to show results with progress bars
+            if (res.data.success || res.data == 1) {
+                alert('Vote submitted successfully!');
+                loadPoll(); // Reload to show results
             } else {
-                alert(response.data.message || 'Failed to submit vote.');
+                alert(res.data.message || 'Failed to submit vote');
                 $btn.prop('disabled', false).html(originalText);
             }
         } catch (error) {
-            console.error('Vote submission error:', error);
-            alert('An error occurred. Please try again.');
+            alert('Error submitting vote');
             $btn.prop('disabled', false).html(originalText);
+        } finally {
+            isPollSubmitting = false;
         }
     });
 
-    // ==================== QUESTION FUNCTIONS ====================
-    function initializeQuestions() {
-        questionChannel.bind('new-question', function(data) {
-            console.log('New question received:', data);
-            showQuestion();
-        });
+    // Poll real-time updates
+    pollChannel.bind('poll-status-changed', function() {
+        loadPoll();
+    });
 
-        showQuestion();
-        setInterval(showQuestion, 30000);
-        
-        // Initialize form validation
-        initializeQuestionForm();
-    }
+    // ==================== QUESTIONS WITH REAL-TIME ANSWERS ====================
 
-    function initializeQuestionForm() {
-        // Make sure the form exists before validating
-        if ($('#question-form').length) {
-            // Remove any existing validation to prevent duplicates
-            if ($('#question-form').data('validator')) {
-                $('#question-form').data('validator').destroy();
-            }
-            
-            $('#question-form').validate({
-                rules: {
-                    question_input: {
-                        required: true,
-                        minlength: 5
-                    }
-                },
-                messages: {
-                    question_input: {
-                        required: 'Please enter your question!',
-                        minlength: 'Please enter at least 5 characters'
-                    }
-                },
-                submitHandler: async function(form, event) {
-                    event.preventDefault(); // Prevent default submission
-                    
-                    const $form = $(form);
-                    const $submitBtn = $form.find('button[type="submit"]');
-                    const originalText = $submitBtn.text();
-                    
-                    console.log('Form submitting...'); // Debug log
-                    console.log('Form action:', $form.attr('action')); // Debug log
-                    console.log('Question:', $form.find('textarea[name="question_input"]').val()); // Debug log
+// Listen for question answered events
+questionChannel.bind('question-answered', function(data) {
+    console.log('📢 Question answered:', data);
+    
+    // Show notification
+    showToastNotification('Question Answered', `${data.user_name}'s question has been answered!`);
+    
+    // Reload questions to show the new answer
+    loadQuestions();
+});
 
-                    try {
-                        $submitBtn.prop('disabled', true).html('<span class="loading-spinner"></span> Submitting...');
-
-                        const response = await axios.post($form.attr('action'), {
-                            question_input: $form.find('textarea[name="question_input"]').val()
-                        });
-
-                        console.log('Response:', response.data); // Debug log
-
-                        let message = '';
-                        if (response.data == 1) {
-                            message = '<div class="alert alert-success">Question Submitted Successfully!</div>';
-                            $form[0].reset();
-                            await showQuestion();
-                        } else if (response.data == 2) {
-                            message = '<div class="alert alert-warning">You have already submitted a question!</div>';
-                        } else {
-                            message = '<div class="alert alert-danger">Something went wrong!</div>';
-                        }
-
-                        $('#message').html(message).show();
-                        setTimeout(() => $('#message').fadeOut(), 3000);
-
-                    } catch (error) {
-                        console.error('Question submission error:', error);
-                        $('#message').html('<div class="alert alert-danger">Failed to submit question. Please try again.</div>').show();
-                        setTimeout(() => $('#message').fadeOut(), 3000);
-                    } finally {
-                        $submitBtn.prop('disabled', false).html(originalText);
-                    }
-                    
-                    return false; // Prevent default form submission
+// Load questions function
+function loadQuestions() {
+    axios.post('{{ route("get-questions") }}', { request: 3 })
+        .then(res => {
+            if (res.data) {
+                $('#messages').html(res.data);
+                // Scroll to bottom to show latest
+                const messagesDiv = document.getElementById('messages');
+                if (messagesDiv) {
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
                 }
-            });
-        } else {
-            console.error('Question form not found!');
-        }
-    }
-
-    async function showQuestion() {
-        try {
-            const response = await axios.post('{{ route("get-questions") }}', {
-                request: 3
-            });
-            $('#messages').html(response.data);
-        } catch (error) {
-            console.error('Error loading questions:', error);
-        }
-    }
-
-    // ==================== REACTION FUNCTIONS WITH RATE LIMITING ====================
-    function initializeReactions() {
-        $('#loveBtn, #likeBtn, #applause').on('click', function() {
-            const reactionType = this.id === 'loveBtn' ? 'love' : (this.id === 'likeBtn' ? 'like' : 'applause');
-            
-            // Check if reaction already submitted in this session
-            if (submittedReactions[reactionType]) {
-                console.log(`You already submitted a ${reactionType} reaction in this session`);
-                // Still show animation for visual feedback
-                createReactionAnimation(reactionType);
-                if (reactionType === 'applause') {
-                    const audio = new Audio('{{ asset("assets/audio/audience-clapping.mp3") }}');
-                    audio.play().catch(e => console.log('Audio play failed:', e));
-                }
-                return;
             }
-            
-            // Check rate limiting
-            if (!reactionCooldown.canSubmit(reactionType)) {
-                // Still show animation for visual feedback
-                createReactionAnimation(reactionType);
-                if (reactionType === 'applause') {
-                    const audio = new Audio('{{ asset("assets/audio/audience-clapping.mp3") }}');
-                    audio.play().catch(e => console.log('Audio play failed:', e));
-                }
-                return;
-            }
-            
-            // Set cooldown
-            reactionCooldown.setCooldown(reactionType);
-            
-            // Create animation and play sound
-            createReactionAnimation(reactionType);
-            if (reactionType === 'applause') {
-                const audio = new Audio('{{ asset("assets/audio/audience-clapping.mp3") }}');
-                audio.play().catch(e => console.log('Audio play failed:', e));
-            }
-            
-            // Store in session to prevent duplicate database submissions
-            submittedReactions[reactionType] = true;
-            sessionStorage.setItem('submittedReactions', JSON.stringify(submittedReactions));
-            
-            // Send to server
-            storeReaction(reactionType);
-        });
-    }
-
-    function createReactionAnimation(type) {
-        const heartContainer = document.getElementById('heartContainer');
-        if (!heartContainer) return;
-        
-        const count = 30;
-        for (let i = 0; i < count; i++) {
-            const element = document.createElement('div');
-            element.classList.add(type === 'love' ? 'heart' : (type === 'like' ? 'like' : 'clap'));
-            element.style.left = `${Math.random() * 100}vw`;
-            element.style.bottom = `-${Math.random() * 10}vh`;
-            const size = Math.random() * 30 + 10;
-            element.style.width = `${size}px`;
-            element.style.height = `${size}px`;
-            element.style.animationDuration = `${Math.random() * 4 + 4}s`;
-            element.style.opacity = Math.random();
-            element.style.position = 'fixed';
-            element.style.zIndex = '9999';
-            element.style.pointerEvents = 'none';
-
-            heartContainer.appendChild(element);
-            element.addEventListener('animationend', () => element.remove());
-        }
-    }
-
-    async function storeReaction(reactionType) {
-    try {
-        const response = await axios.post('{{ route("store-reaction") }}', {
-            reaction: reactionType
-        });
-        
-        if (response.data.success) {
-            console.log("Reaction recorded:", reactionType);
-            // Mark as submitted in session
-            submittedReactions[reactionType] = true;
-            sessionStorage.setItem('submittedReactions', JSON.stringify(submittedReactions));
-        }
-    } catch (error) {
-        console.error('Error storing reaction:', error);
-        
-        if (error.response && error.response.status === 429) {
-            // Already submitted - mark as submitted in session
-            submittedReactions[reactionType] = true;
-            sessionStorage.setItem('submittedReactions', JSON.stringify(submittedReactions));
-            console.log('Reaction already submitted:', reactionType);
-        }
-        // Silent fail - user sees only animation, no error messages
-    }
+        })
+        .catch(err => console.error('Questions error:', err));
 }
 
-    // ==================== USER ACTIVITY TRACKING (4 minute interval) ====================
-    let activityInterval = null;
-    let lastActivityTime = Date.now();
-
-    function initializeActivityTracking() {
-        // Track initial activity
-        trackUserActivity();
-        
-        // Track activity every 4 minutes (240,000 ms) - matches 5 minute online threshold
-        if (activityInterval) clearInterval(activityInterval);
-        activityInterval = setInterval(trackUserActivity, 240000); // 4 minutes
-        
-        // Track activity on user interaction (debounced to reduce server load)
-        let activityDebounceTimer;
-        $(document).on('click keypress mousemove scroll', function() {
-            const now = Date.now();
-            // Only track if last activity was more than 30 seconds ago
-            if (now - lastActivityTime > 30000) {
-                lastActivityTime = now;
-                if (activityDebounceTimer) clearTimeout(activityDebounceTimer);
-                activityDebounceTimer = setTimeout(() => {
-                    trackUserActivity();
-                }, 1000);
-            }
-        });
+// Show toast notification
+function showToastNotification(title, message) {
+    if (!$('#toastContainer').length) {
+        $('body').append('<div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>');
     }
+    
+    const toastId = 'toast_' + Date.now();
+    const toastHtml = `
+        <div id="${toastId}" class="toast show" role="alert" style="min-width: 300px; margin-bottom: 10px;">
+            <div class="toast-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white;">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong class="me-auto">${title}</strong>
+                <small>Just now</small>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                ${escapeHtml(message)}
+            </div>
+        </div>
+    `;
+    
+    $('#toastContainer').append(toastHtml);
+    
+    setTimeout(() => {
+        $(`#${toastId}`).fadeOut(300, function() {
+            $(this).remove();
+        });
+    }, 5000);
+}
 
-    async function trackUserActivity() {
-        try {
-            const response = await axios.post('{{ route("track-activity") }}');
-            console.log('Activity tracked at:', new Date().toLocaleTimeString());
-        } catch (error) {
-            console.error('Error tracking activity:', error);
+    // ==================== REACTIONS ====================
+    let submittedReactions = JSON.parse(sessionStorage.getItem('submittedReactions') || '{}');
+    let reactionTimer = null;
+
+    $('.reaction-btn').on('click', function() {
+        const type = $(this).data('reaction');
+        
+        if (submittedReactions[type]) {
+            createReactionAnimation(type);
+            if (type === 'applause') playApplause();
+            return;
+        }
+        
+        if (reactionTimer) {
+            createReactionAnimation(type);
+            if (type === 'applause') playApplause();
+            return;
+        }
+        
+        reactionTimer = setTimeout(() => reactionTimer = null, 3000);
+        createReactionAnimation(type);
+        if (type === 'applause') playApplause();
+        
+        submittedReactions[type] = true;
+        sessionStorage.setItem('submittedReactions', JSON.stringify(submittedReactions));
+        
+        axios.post('{{ route("store-reaction") }}', { reaction: type })
+            .catch(err => console.error('Reaction error:', err));
+    });
+
+    function createReactionAnimation(type) {
+        const container = document.getElementById('heartContainer');
+        if (!container) return;
+        
+        for (let i = 0; i < 30; i++) {
+            const el = document.createElement('div');
+            el.className = type === 'love' ? 'heart' : (type === 'like' ? 'like' : 'clap');
+            el.style.cssText = `
+                position: fixed;
+                left: ${Math.random() * 100}vw;
+                bottom: -20px;
+                width: ${Math.random() * 30 + 10}px;
+                height: ${Math.random() * 30 + 10}px;
+                animation: floatUp ${Math.random() * 4 + 4}s ease-out forwards;
+                z-index: 9999;
+                pointer-events: none;
+            `;
+            container.appendChild(el);
+            el.addEventListener('animationend', () => el.remove());
         }
     }
+    
+    function playApplause() {
+        new Audio('{{ asset("assets/audio/audience-clapping.mp3") }}').play().catch(e => console.log(e));
+    }
 
-    // ==================== CLEANUP ====================
-    window.addEventListener('beforeunload', function() {
-        if (pollChannel) pollChannel.unbind();
-        if (questionChannel) questionChannel.unbind();
-        if (activityInterval) clearInterval(activityInterval);
+    // ==================== ACTIVITY TRACKING ====================
+    setInterval(() => {
+        axios.post('{{ route("track-activity") }}').catch(e => console.log(e));
+    }, 240000);
+
+    // ==================== INITIALIZATION ====================
+    $(document).ready(function() {
+        // Sidebar toggles
+        $('#dismissPollSidebar, #dismissQuestionSidebar').on('click', function() {
+            $('#pollSidebar, #questionSidebar').removeClass('active');
+        });
+        $('#pollSidebarCollapse').on('click', () => $('#pollSidebar').addClass('active'));
+        $('#questionSidebarCollapse').on('click', () => $('#questionSidebar').addClass('active'));
+        
+        // Load initial data
+        loadPoll();
+        loadQuestions();
     });
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 </script>
+
+<style>
+@keyframes floatUp {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+}
+</style>
 @endpush

@@ -6,7 +6,7 @@
     <h3>ASK QUESTION</h3>
   </div>
   <div class="sidebar-body">
-    <h4 class="text-dark">Please ask your questions, it'll be answered during Q&A session.</h4>
+    <h4 class="text-dark sidebar-title">Please ask your questions, it'll be answered during Q&A session.</h4>
     <div class="question-wrapper">
       <div class="question-box mt-4 mt-md-0">
         <div id="message"></div>
@@ -21,7 +21,7 @@
 
       <div class="view-question-box">
         <div class="chat_window">
-          <ul class="messages" id="messages"></ul>
+          <div class="messages" id="messages"></div>
         </div>
       </div>
     </div>

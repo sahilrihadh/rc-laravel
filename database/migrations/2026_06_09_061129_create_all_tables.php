@@ -6,8 +6,13 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
+        // ==================== USERS & AUTH TABLES ====================
+        
         // Users table
         Schema::create('users', function (Blueprint $table) {
             $table->id();
@@ -23,8 +28,8 @@ return new class extends Migration
             $table->boolean('sale_consent')->default(false);
             $table->boolean('research_consent')->default(false);
             $table->timestamp('registered_at')->useCurrent();
-            $table->timestamp('last_seen_at')->nullable();  // ✅ Added this line
-            $table->boolean('is_online')->default(false);   // ✅ Added this line
+            $table->timestamp('last_seen_at')->nullable();
+            $table->boolean('is_online')->default(false);
             $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
@@ -42,6 +47,13 @@ return new class extends Migration
             $table->timestamps();
         });
 
+        // Password reset tokens
+        Schema::create('password_reset_tokens', function (Blueprint $table) {
+            $table->string('email')->primary();
+            $table->string('token');
+            $table->timestamp('created_at')->nullable();
+        });
+
         // Sessions table
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
@@ -53,14 +65,8 @@ return new class extends Migration
             $table->integer('last_activity')->index();
         });
 
-        // Password reset tokens
-        Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->string('email')->primary();
-            $table->string('token');
-            $table->timestamp('created_at')->nullable();
-        });
-
-        // Cache tables
+        // ==================== CACHE & QUEUE TABLES ====================
+        
         Schema::create('cache', function (Blueprint $table) {
             $table->string('key')->primary();
             $table->mediumText('value');
@@ -73,7 +79,6 @@ return new class extends Migration
             $table->integer('expiration');
         });
 
-        // Jobs tables
         Schema::create('jobs', function (Blueprint $table) {
             $table->id();
             $table->string('queue')->index();
@@ -107,6 +112,8 @@ return new class extends Migration
             $table->timestamp('failed_at')->useCurrent();
         });
 
+        // ==================== WEBINAR & QUESTIONS TABLES ====================
+        
         // Webinar sessions
         Schema::create('webinar_sessions', function (Blueprint $table) {
             $table->id();
@@ -115,19 +122,21 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // Questions
+        // Questions table
         Schema::create('questions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->foreignId('webinar_session_id')->constrained()->onDelete('cascade');
+            $table->foreignId('webinar_session_id')->nullable()->constrained()->onDelete('cascade');
             $table->text('question_text');
             $table->timestamp('asked_at')->useCurrent();
             $table->boolean('is_answered')->default(false);
             $table->text('answer_text')->nullable();
+            $table->timestamp('answered_at')->nullable();
             $table->timestamps();
         });
 
-        // Certificates
+        // ==================== CERTIFICATES TABLES ====================
+        
         Schema::create('certificates', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
@@ -138,37 +147,67 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // Polls
+        // ==================== POLLS TABLES ====================
+        
+        // Polls table (without webinar_session_id)
         Schema::create('polls', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('webinar_session_id')->constrained()->onDelete('cascade');
             $table->string('question');
             $table->boolean('is_active')->default(true);
             $table->dateTime('expires_at')->nullable();
             $table->timestamps();
         });
 
-        // Poll options
+        // Poll options table with is_correct field
         Schema::create('poll_options', function (Blueprint $table) {
             $table->id();
             $table->foreignId('poll_id')->constrained()->onDelete('cascade');
             $table->string('option_text');
+            $table->boolean('is_correct')->default(false);
             $table->integer('vote_count')->default(0);
             $table->timestamps();
         });
 
-        // Poll votes
+        // Poll votes table with is_correct field
         Schema::create('poll_votes', function (Blueprint $table) {
             $table->id();
             $table->foreignId('poll_id')->constrained()->onDelete('cascade');
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('poll_option_id')->constrained()->onDelete('cascade');
+            $table->boolean('is_correct')->default(false);
             $table->timestamp('voted_at')->useCurrent();
             $table->unique(['poll_id', 'user_id']);
             $table->timestamps();
         });
 
-        // Previous sessions
+        // ==================== REACTIONS TABLE ====================
+        
+        Schema::create('reactions', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('reaction_type'); // love, like, applause
+            $table->string('session_id')->nullable();
+            $table->string('ip_address')->nullable();
+            $table->timestamps();
+            
+            $table->index(['user_id', 'created_at']);
+            $table->index('reaction_type');
+        });
+
+        // ==================== LOGIN DETAILS TABLE ====================
+        
+        Schema::create('login_details', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->timestamp('login_time')->nullable();
+            $table->timestamp('logout_time')->nullable();
+            $table->timestamps();
+            
+            $table->index(['user_id', 'login_time']);
+        });
+
+        // ==================== PREVIOUS SESSIONS TABLE ====================
+        
         Schema::create('previous_sessions', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
@@ -179,26 +218,45 @@ return new class extends Migration
             $table->string('certificate_path')->nullable();
             $table->integer('count')->default(1);
             $table->timestamps();
+            
             $table->index(['email_id', 'session_name']);
+        });
+
+        // ==================== ANNOUNCEMENTS TABLE ====================
+        
+        Schema::create('announcements', function (Blueprint $table) {
+            $table->id();
+            $table->string('title');
+            $table->text('description');
+            $table->enum('status', ['show', 'hide'])->default('hide');
+            $table->timestamps();
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
+        // Drop tables in reverse order to avoid foreign key constraints
+        
+        Schema::dropIfExists('announcements');
+        Schema::dropIfExists('previous_sessions');
+        Schema::dropIfExists('login_details');
+        Schema::dropIfExists('reactions');
         Schema::dropIfExists('poll_votes');
         Schema::dropIfExists('poll_options');
         Schema::dropIfExists('polls');
         Schema::dropIfExists('certificates');
         Schema::dropIfExists('questions');
         Schema::dropIfExists('webinar_sessions');
-        Schema::dropIfExists('previous_sessions');
         Schema::dropIfExists('failed_jobs');
         Schema::dropIfExists('job_batches');
         Schema::dropIfExists('jobs');
         Schema::dropIfExists('cache_locks');
         Schema::dropIfExists('cache');
-        Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('admins');
         Schema::dropIfExists('users');
     }

@@ -5,13 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Question;
 use Illuminate\Http\Request;
+use App\Events\QuestionAnswered;
 
 class QuestionController extends Controller
 {
     public function index(Request $request)
     {
         $questions = Question::with('user')
-            ->orderBy('is_answered', 'asc')
             ->orderBy('created_at', 'desc')
             ->paginate(20);
             
@@ -39,14 +39,24 @@ class QuestionController extends Controller
             
             $question = Question::findOrFail($id);
             
+            $wasAnswered = $question->is_answered;
+            
             $question->update([
                 'answer_text' => $request->answer_text,
-                'is_answered' => true
+                'is_answered' => true,
+                'answered_at' => now()
             ]);
+            
+            // Broadcast event ONLY when answering (not on edit)
+            // Or broadcast on both - your choice
+            broadcast(new QuestionAnswered($question))->toOthers();
+            
+            $message = $wasAnswered ? 'Answer updated successfully!' : 'Answer submitted successfully!';
             
             return response()->json([
                 'success' => true,
-                'message' => 'Answer submitted successfully!'
+                'message' => $message,
+                'was_updated' => $wasAnswered
             ]);
             
         } catch (\Exception $e) {

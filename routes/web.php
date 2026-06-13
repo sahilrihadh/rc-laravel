@@ -10,8 +10,9 @@ use App\Http\Controllers\Admin\PollController;
 use App\Http\Controllers\Admin\VisitorController;
 use App\Http\Controllers\Admin\CertificateController;
 use App\Http\Controllers\Admin\AdminUserController;
-use App\Http\Controllers\Admin\LoginDetailController;  // Add this
-use App\Http\Controllers\Admin\PreviousSessionController;  // Add this
+use App\Http\Controllers\Admin\LoginDetailController;
+use App\Http\Controllers\Admin\PreviousSessionController;
+use App\Http\Controllers\Admin\AnnouncementController;
 
 // ==================== PUBLIC ROUTES ====================
 
@@ -30,54 +31,74 @@ Route::get('/thank-you', function () {
     return view('thank-you');
 })->name('thank.you');
 
-// ==================== ADMIN ROUTES ====================
-Route::prefix('admin')->name('admin.')->middleware('admin')->group(function () {
+Route::get('api/active-announcements', [App\Http\Controllers\Admin\AnnouncementController::class, 'getActive']);
 
+// ==================== ADMIN ROUTES ====================
+Route::prefix('admin')->name('admin.')->group(function () {
+
+    // Guest routes for admin (not logged in)
     Route::middleware('guest:admin')->group(function () {
         Route::get('login', [AdminAuthController::class, 'showLoginForm'])->name('login');
         Route::post('login', [AdminAuthController::class, 'login'])->name('login.submit');
     });
 
-    Route::middleware('auth:admin')->group(function () {
-
+    // Protected admin routes with admin session middleware
+    Route::middleware(['auth:admin', 'admin.session'])->group(function () {
+        
         Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::post('logout', [AdminAuthController::class, 'logout'])->name('logout');
 
+        // Admin User Management
+        Route::resource('admins', AdminUserController::class);
+        Route::get('admins/{id}/toggle-status', [AdminUserController::class, 'toggleStatus'])
+            ->name('admins.toggle-status');
+
+        // Polls Management
         Route::resource('polls', PollController::class);
         Route::post('polls/{id}/toggle-status', [PollController::class, 'toggleStatus'])->name('polls.toggle-status');
 
+        // Users Management
         Route::get('users', [UserController::class, 'index'])->name('users');
         Route::delete('users/{id}', [UserController::class, 'destroy'])->name('users.destroy');
 
-        // In routes/web.php inside admin group
-Route::get('questions', [QuestionController::class, 'index'])->name('questions');
-Route::get('questions/{id}', [QuestionController::class, 'show'])->name('questions.show');
-Route::post('questions/{id}/answer', [QuestionController::class, 'answer'])->name('questions.answer');
-Route::delete('questions/{id}', [QuestionController::class, 'destroy'])->name('questions.destroy');
-Route::post('questions/bulk-delete', [QuestionController::class, 'bulkDelete'])->name('questions.bulk-delete');
+        // Questions Management
+        Route::get('questions', [QuestionController::class, 'index'])->name('questions');
+        Route::get('questions/{id}', [QuestionController::class, 'show'])->name('questions.show');
+        Route::post('questions/{id}/answer', [QuestionController::class, 'answer'])->name('questions.answer');
+        Route::delete('questions/{id}', [QuestionController::class, 'destroy'])->name('questions.destroy');
+        Route::post('questions/bulk-delete', [QuestionController::class, 'bulkDelete'])->name('questions.bulk-delete');
 
-        // Login Details Routes - Using the imported class
-        Route::get('/login-details', [LoginDetailController::class, 'index'])->name('login-details.index');
-        Route::get('/login-details/{id}', [LoginDetailController::class, 'show'])->name('login-details.show');
-        Route::get('/login-details/export/csv', [LoginDetailController::class, 'export'])->name('login-details.export');
-        Route::delete('/login-details/{id}', [LoginDetailController::class, 'destroy'])->name('login-details.destroy');
-        Route::post('/login-details/bulk-delete', [LoginDetailController::class, 'bulkDelete'])->name('login-details.bulk-delete');
-        Route::post('/login-details/clear-old', [LoginDetailController::class, 'clearOldRecords'])->name('login-details.clear-old');
+        // Login Details Routes
+        Route::get('login-details', [LoginDetailController::class, 'index'])->name('login-details.index');
+        Route::get('login-details/{id}', [LoginDetailController::class, 'show'])->name('login-details.show');
+        Route::get('login-details/export/csv', [LoginDetailController::class, 'export'])->name('login-details.export');
+        Route::delete('login-details/{id}', [LoginDetailController::class, 'destroy'])->name('login-details.destroy');
+        Route::post('login-details/bulk-delete', [LoginDetailController::class, 'bulkDelete'])->name('login-details.bulk-delete');
+        Route::post('login-details/clear-old', [LoginDetailController::class, 'clearOldRecords'])->name('login-details.clear-old');
 
         // Previous Sessions Routes
-Route::get('/previous-sessions', [PreviousSessionController::class, 'index'])->name('previous-sessions.index');
-Route::get('/previous-sessions/{id}', [PreviousSessionController::class, 'show'])->name('previous-sessions.show');
-Route::post('/previous-sessions/{id}/resend-certificate', [PreviousSessionController::class, 'resendCertificate'])->name('previous-sessions.resend-certificate');
-Route::delete('/previous-sessions/{id}', [PreviousSessionController::class, 'destroy'])->name('previous-sessions.destroy');
-Route::post('/previous-sessions/bulk-delete', [PreviousSessionController::class, 'bulkDelete'])->name('previous-sessions.bulk-delete');
-Route::post('/previous-sessions/clear-old', [PreviousSessionController::class, 'clearOldRecords'])->name('previous-sessions.clear-old');
-    });
+        Route::get('previous-sessions', [PreviousSessionController::class, 'index'])->name('previous-sessions.index');
+        Route::get('previous-sessions/{id}', [PreviousSessionController::class, 'show'])->name('previous-sessions.show');
+        Route::post('previous-sessions/{id}/resend-certificate', [PreviousSessionController::class, 'resendCertificate'])->name('previous-sessions.resend-certificate');
+        Route::delete('previous-sessions/{id}', [PreviousSessionController::class, 'destroy'])->name('previous-sessions.destroy');
+        Route::post('previous-sessions/bulk-delete', [PreviousSessionController::class, 'bulkDelete'])->name('previous-sessions.bulk-delete');
+        Route::post('previous-sessions/clear-old', [PreviousSessionController::class, 'clearOldRecords'])->name('previous-sessions.clear-old');
+
+        // Announcement Routes
+Route::resource('announcements', AnnouncementController::class);
+Route::get('announcements/{id}/toggle-status', [AnnouncementController::class, 'toggleStatus'])
+    ->name('announcements.toggle-status');
+Route::get('get-active-announcements', [AnnouncementController::class, 'getActive'])
+    ->name('announcements.get-active');
+    
+    
+        });
 });
 
 // ==================== AUTH ROUTES ====================
 require __DIR__ . '/auth.php';
 
-// ==================== PROTECTED ROUTES ====================
+// ==================== PROTECTED USER ROUTES ====================
 Route::middleware('auth')->group(function () {
     // Dashboard/Webcast Pages
     Route::get('/webcast', [PageController::class, 'webcast'])->name('webcast');

@@ -72,62 +72,60 @@
             <th width="30%">Answer / Reply</th>
             <th>Status</th>
             <th>Submitted</th>
-            <th>Actions</th>
+            <th width="150">Actions</th>
           </tr>
         </thead>
         <tbody>
           @forelse($questions as $question)
-          <tr class="{{ !$question->is_answered ? 'table-warning' : '' }}">
+          <tr class="{{ !$question->is_answered ? 'table-warning' : '' }}" id="question-row-{{ $question->id }}">
             <td>
               <input type="checkbox" class="record-checkbox" value="{{ $question->id }}">
             </td>
             <td>{{ $question->id }}</td>
             <td>
-              <strong>{{ $question->user->full_name ?? 'N/A' }}</strong>
+              <strong>{{ $question->user->full_name ?? $question->user->name ?? 'N/A' }}</strong>
             </td>
-            <td>{{ $question->user->email_id ?? 'N/A' }}</td>
+            <td>{{ $question->user->email_id ?? $question->user->email ?? 'N/A' }}</td>
             <td>
               <div style="word-wrap: break-word;">
                 {{ $question->question_text ?? $question->question_input }}
               </div>
             </td>
-            <td>
+            <td id="answer-cell-{{ $question->id }}">
               @if($question->is_answered)
                 <div class="answer-box p-2 bg-light rounded">
-                  <p class="mb-0">{{ $question->answer_text }}</p>
+                  <p class="mb-0">{{ Str::limit($question->answer_text, 100) }}</p>
                 </div>
               @else
                 <span class="badge bg-warning">Awaiting answer</span>
               @endif
-            </td>
+             </td>
             <td>
-              @if($question->is_answered)
-                <span class="badge bg-success">Answered</span>
-              @else
-                <span class="badge bg-warning">Pending</span>
-              @endif
+              <span class="badge status-badge-{{ $question->id }} {{ $question->is_answered ? 'bg-success' : 'bg-warning' }}">
+                {{ $question->is_answered ? 'Answered' : 'Pending' }}
+              </span>
             </td>
             <td>{{ $question->created_at->format('d M Y h:i A') }}</td>
             <td>
-              <div class="btn-group" role="group">
-                @if(!$question->is_answered)
-                  <button class="btn btn-sm btn-primary answer-question" 
-                          data-id="{{ $question->id }}"
-                          data-question="{{ $question->question_text ?? $question->question_input }}"
-                          data-user="{{ $question->user->full_name ?? 'N/A' }}">
-                    <i class="fas fa-reply"></i> Reply
-                  </button>
-                @endif
-                <button class="btn btn-sm btn-info view-question" 
+              <div class="btn-group btn-group-sm" role="group">
+                <button class="btn btn-primary answer-question" 
                         data-id="{{ $question->id }}"
                         data-question="{{ $question->question_text ?? $question->question_input }}"
-                        data-user="{{ $question->user->full_name ?? 'N/A' }}"
-                        data-email="{{ $question->user->email_id ?? 'N/A' }}"
+                        data-user="{{ $question->user->full_name ?? $question->user->name ?? 'N/A' }}"
+                        data-current-answer="{{ $question->answer_text ?? '' }}">
+                  <i class="fas fa-{{ $question->is_answered ? 'edit' : 'reply' }}"></i> 
+                  {{ $question->is_answered ? 'Edit' : 'Reply' }}
+                </button>
+                <button class="btn btn-info view-question" 
+                        data-id="{{ $question->id }}"
+                        data-question="{{ $question->question_text ?? $question->question_input }}"
+                        data-user="{{ $question->user->full_name ?? $question->user->name ?? 'N/A' }}"
+                        data-email="{{ $question->user->email_id ?? $question->user->email ?? 'N/A' }}"
                         data-answer="{{ $question->answer_text ?? '' }}"
                         data-status="{{ $question->is_answered ? 'Answered' : 'Pending' }}">
                   <i class="fas fa-eye"></i>
                 </button>
-                <button class="btn btn-sm btn-danger delete-question" 
+                <button class="btn btn-danger delete-question" 
                         data-id="{{ $question->id }}"
                         data-question="{{ Str::limit($question->question_text ?? $question->question_input, 50) }}">
                   <i class="fas fa-trash"></i>
@@ -141,7 +139,7 @@
           </tr>
           @endforelse
         </tbody>
-      </table>
+      能有
     </div>
 
     <div class="d-flex justify-content-center mt-4">
@@ -155,7 +153,7 @@
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Reply to Question</h5>
+        <h5 class="modal-title" id="answerModalTitle">Reply to Question</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
@@ -168,14 +166,14 @@
           <div class="p-3 bg-light rounded" id="modalQuestionText"></div>
         </div>
         <div class="mb-3">
-          <label class="form-label">Your Answer:</label>
+          <label class="form-label" id="answerLabel">Your Answer:</label>
           <textarea id="answerText" class="form-control" rows="5" placeholder="Type your answer here..."></textarea>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-primary" id="submitAnswer">
-          <i class="fas fa-paper-plane"></i> Submit Answer
+          <i class="fas fa-paper-plane"></i> <span id="submitBtnText">Submit Answer</span>
         </button>
       </div>
     </div>
@@ -229,13 +227,33 @@
 $(document).ready(function() {
     let selectedIds = [];
     let currentQuestionId = null;
+    let isEditing = false;
     
-    // Answer button click
+    // Answer button click (works for both Reply and Edit)
     $('.answer-question').on('click', function() {
         currentQuestionId = $(this).data('id');
-        $('#modalUserName').text($(this).data('user'));
-        $('#modalQuestionText').text($(this).data('question'));
-        $('#answerText').val('');
+        const userName = $(this).data('user');
+        const questionText = $(this).data('question');
+        const currentAnswer = $(this).data('current-answer');
+        const hasAnswer = currentAnswer && currentAnswer.trim() !== '';
+        
+        $('#modalUserName').text(userName);
+        $('#modalQuestionText').text(questionText);
+        
+        if (hasAnswer) {
+            $('#answerModalTitle').text('Edit Answer');
+            $('#answerLabel').text('Edit Your Answer:');
+            $('#answerText').val(currentAnswer);
+            $('#submitBtnText').text('Update Answer');
+            isEditing = true;
+        } else {
+            $('#answerModalTitle').text('Reply to Question');
+            $('#answerLabel').text('Your Answer:');
+            $('#answerText').val('');
+            $('#submitBtnText').text('Submit Answer');
+            isEditing = false;
+        }
+        
         $('#answerModal').modal('show');
     });
     
@@ -247,8 +265,9 @@ $(document).ready(function() {
         $('#viewStatus').html($(this).data('status') === 'Answered' ? '<span class="badge bg-success">Answered</span>' : '<span class="badge bg-warning">Pending</span>');
         $('#viewSubmittedAt').text($(this).closest('tr').find('td:eq(7)').text());
         
-        if ($(this).data('answer')) {
-            $('#viewAnswerText').text($(this).data('answer'));
+        const answer = $(this).data('answer');
+        if (answer && answer.trim() !== '') {
+            $('#viewAnswerText').text(answer);
             $('#answerSection').show();
         } else {
             $('#answerSection').hide();
@@ -257,7 +276,7 @@ $(document).ready(function() {
         $('#viewModal').modal('show');
     });
     
-    // Submit Answer
+    // Submit/Update Answer
     $('#submitAnswer').on('click', function() {
         var answerText = $('#answerText').val().trim();
         
@@ -272,16 +291,22 @@ $(document).ready(function() {
             return;
         }
         
+        const actionText = isEditing ? 'update' : 'submit';
+        
         Swal.fire({
-            title: 'Submit Answer?',
-            text: "This answer will be visible to the user.",
+            title: isEditing ? 'Update Answer?' : 'Submit Answer?',
+            text: isEditing ? "This will update the existing answer." : "This answer will be visible to the user.",
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#3085d6',
             cancelButtonColor: '#d33',
-            confirmButtonText: 'Yes, submit it!'
+            confirmButtonText: isEditing ? 'Yes, update it!' : 'Yes, submit it!'
         }).then((result) => {
             if (result.isConfirmed) {
+                const $btn = $('#submitAnswer');
+                const originalText = $btn.html();
+                $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
+                
                 $.ajax({
                     url: '/admin/questions/' + currentQuestionId + '/answer',
                     type: 'POST',
@@ -291,6 +316,9 @@ $(document).ready(function() {
                     },
                     success: function(response) {
                         if (response.success) {
+                            // Update the table row without reload
+                            updateQuestionRow(currentQuestionId, answerText);
+                            
                             Swal.fire({
                                 icon: 'success',
                                 title: 'Success!',
@@ -298,23 +326,74 @@ $(document).ready(function() {
                                 timer: 1500,
                                 showConfirmButton: false
                             }).then(() => {
-                                location.reload();
+                                $('#answerModal').modal('hide');
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error!',
+                                text: response.message,
+                                timer: 2000,
+                                showConfirmButton: false
                             });
                         }
                     },
-                    error: function() {
+                    error: function(xhr) {
+                        let errorMsg = 'Failed to ' + actionText + ' answer';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMsg = xhr.responseJSON.message;
+                        }
                         Swal.fire({
                             icon: 'error',
                             title: 'Error!',
-                            text: 'Failed to submit answer',
+                            text: errorMsg,
                             timer: 2000,
                             showConfirmButton: false
                         });
+                    },
+                    complete: function() {
+                        $btn.prop('disabled', false).html(originalText);
                     }
                 });
             }
         });
     });
+    
+    // Update question row dynamically
+    function updateQuestionRow(questionId, answerText) {
+        const $row = $('#question-row-' + questionId);
+        const $answerCell = $('#answer-cell-' + questionId);
+        const $statusBadge = $('.status-badge-' + questionId);
+        
+        // Update answer cell
+        $answerCell.html(`
+            <div class="answer-box p-2 bg-light rounded">
+                <p class="mb-0">${escapeHtml(answerText.substring(0, 100))}${answerText.length > 100 ? '...' : ''}</p>
+            </div>
+        `);
+        
+        // Update status badge
+        $statusBadge.removeClass('bg-warning').addClass('bg-success');
+        $statusBadge.text('Answered');
+        
+        // Update the action button
+        const $actionBtn = $row.find('.answer-question');
+        $actionBtn.html('<i class="fas fa-edit"></i> Edit');
+        $actionBtn.data('current-answer', answerText);
+        
+        // Remove warning class from row
+        $row.removeClass('table-warning');
+        
+        // Show success toast
+        toastr.success('Answer updated successfully!', 'Success');
+    }
+    
+    // Escape HTML helper
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
     
     // Select All checkbox functionality
     $('#selectAllCheckbox').on('change', function() {
@@ -337,10 +416,8 @@ $(document).ready(function() {
         if (selectedIds.length > 0) {
             $('#bulkActionsBar').show();
             $('#selectedCount').text(selectedIds.length);
-            $('#bulkDeleteBtn').show();
         } else {
             $('#bulkActionsBar').hide();
-            $('#bulkDeleteBtn').hide();
         }
         
         var totalCheckboxes = $('.record-checkbox').length;
@@ -361,7 +438,7 @@ $(document).ready(function() {
     });
     
     // Bulk Delete
-    $('#confirmBulkDelete, #bulkDeleteBtn').on('click', function() {
+    $('#confirmBulkDelete').on('click', function() {
         if (selectedIds.length === 0) {
             Swal.fire({
                 icon: 'warning',
@@ -440,14 +517,16 @@ $(document).ready(function() {
                     },
                     success: function(response) {
                         if (response.success) {
+                            $('#question-row-' + id).fadeOut(300, function() {
+                                $(this).remove();
+                            });
+                            
                             Swal.fire({
                                 icon: 'success',
                                 title: 'Deleted!',
                                 text: response.message,
                                 timer: 1500,
                                 showConfirmButton: false
-                            }).then(() => {
-                                location.reload();
                             });
                         }
                     },

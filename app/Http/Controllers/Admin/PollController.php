@@ -72,7 +72,9 @@ class PollController extends Controller
 
             // Broadcast if active
             if ($isActive) {
-                broadcast(new PollStatusChanged($this->getPollData($poll)))->toOthers();
+                $poll->load('options');
+                $pollHtml = $this->generatePollHtml($poll);
+                broadcast(new PollStatusChanged('active', $pollHtml, $poll->toArray()))->toOthers();
             }
 
             return redirect()->route('admin.polls.index')
@@ -161,11 +163,13 @@ class PollController extends Controller
                 }
             }
 
-            // Broadcast if active
+            // Broadcast based on status
             if ($isActive) {
-                broadcast(new PollStatusChanged($this->getPollData($poll)))->toOthers();
+                $poll->load('options');
+                $pollHtml = $this->generatePollHtml($poll);
+                broadcast(new PollStatusChanged('active', $pollHtml, $poll->toArray()))->toOthers();
             } else {
-                broadcast(new PollStatusChanged(null))->toOthers();
+                broadcast(new PollStatusChanged('inactive', null, null))->toOthers();
             }
 
             return redirect()->route('admin.polls.index')
@@ -178,102 +182,107 @@ class PollController extends Controller
     }
 
     /**
- * Toggle poll status (activate/deactivate).
- */
-public function toggleStatus($id)
-{
-    try {
-        $poll = Poll::findOrFail($id);
-        
-        if (!$poll->is_active) {
-            // Activating - deactivate all others first
-            Poll::where('is_active', true)->update(['is_active' => false]);
-            $poll->update(['is_active' => true]);
+     * Toggle poll status (activate/deactivate).
+     */
+    public function toggleStatus($id)
+    {
+        try {
+            $poll = Poll::with('options')->findOrFail($id);
             
-            // Get the poll HTML for the event
-            $pollHtml = $this->getPollHtmlForBroadcast($poll);
+            if (!$poll->is_active) {
+                // Activating - deactivate all others first
+                Poll::where('is_active', true)->update(['is_active' => false]);
+                $poll->update(['is_active' => true]);
+                
+                // Get the poll HTML for the event
+                $pollHtml = $this->generatePollHtml($poll);
+                $pollData = $poll->toArray();
+                $pollData['options'] = $poll->options->toArray();
+                
+                // Broadcast active event with HTML
+                broadcast(new PollStatusChanged('active', $pollHtml, $pollData))->toOthers();
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Poll activated successfully!'
+                ]);
+            } else {
+                // Deactivating
+                $poll->update(['is_active' => false]);
+                
+                // Broadcast inactive event
+                broadcast(new PollStatusChanged('inactive', null, null))->toOthers();
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Poll deactivated successfully!'
+                ]);
+            }
             
-            // Broadcast active event with HTML
-            broadcast(new PollStatusChanged('active', $pollHtml))->toOthers();
-            
+        } catch (\Exception $e) {
+            Log::error('Error toggling poll status: ' . $e->getMessage());
             return response()->json([
-                'success' => true,
-                'message' => 'Poll activated successfully!'
-            ]);
-        } else {
-            // Deactivating
-            $poll->update(['is_active' => false]);
-            
-            // Broadcast inactive event
-            broadcast(new PollStatusChanged('inactive', null))->toOthers();
-            
-            return response()->json([
-                'success' => true,
-                'message' => 'Poll deactivated successfully!'
-            ]);
+                'success' => false,
+                'message' => 'Failed to change poll status: ' . $e->getMessage()
+            ], 500);
         }
-        
-    } catch (\Exception $e) {
-        Log::error('Error toggling poll status: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to change poll status'
-        ], 500);
     }
-}
-
-/**
- * Get poll HTML for broadcasting
- */
-private function getPollHtmlForBroadcast($poll)
-{
-    $poll->load('options');
-    
-    $html = '<div class="mb-4">';
-    $html .= '<h4 class="text-danger poll-title">' . e($poll->question) . '</h4>';
-    $html .= '<form id="poll-form" method="post">';
-    
-    foreach ($poll->options as $option) {
-        $html .= '<div class="form-check mb-2">';
-        $html .= '<label class="form-check-label">';
-        $html .= '<input type="radio" class="form-check-input" name="poll" value="' . $option->id . '">';
-        $html .= e($option->option_text);
-        $html .= '<i class="input-helper"></i>';
-        $html .= '</label>';
-        $html .= '</div>';
-    }
-    
-    $html .= '<button type="submit" class="btn btn-canin mt-4" id="but_vote">Vote</button>';
-    $html .= '</form>';
-    $html .= '</div>';
-    
-    return $html;
-}
 
     /**
- * Display poll results with user votes
- */
-public function show($id)
-{
-    $poll = Poll::with('options')->findOrFail($id);
-    
-    // Get user votes with pagination
-    $userVotes = PollVote::with(['user', 'option'])
-        ->where('poll_id', $id)
-        ->orderBy('created_at', 'desc')
-        ->paginate(20);
-    
-    $totalVotes = $poll->votes()->count();
-    $correctVotes = PollVote::where('poll_id', $id)
-        ->where('is_correct', true)
-        ->count();
-    $incorrectVotes = $totalVotes - $correctVotes;
-    
-    return view('admin.polls.show', compact('poll', 'userVotes', 'totalVotes', 'correctVotes', 'incorrectVotes'));
-}
+     * Generate poll HTML for broadcasting
+     */
+    private function generatePollHtml($poll)
+    {
+        $poll->load('options');
+        
+        $html = '<div class="poll-container" data-poll-id="' . $poll->id . '">';
+        $html .= '<div class="mb-4">';
+        $html .= '<h4 class="text-danger poll-title mb-3">' . e($poll->question) . '</h4>';
+        $html .= '<form id="poll-form" method="post" class="poll-form">';
+        $html .= '<input type="hidden" name="poll_id" value="' . $poll->id . '">';
+        $html .= csrf_field();
+        
+        foreach ($poll->options as $index => $option) {
+            $html .= '<div class="form-check mb-2">';
+            $html .= '<input type="radio" class="form-check-input poll-option" name="poll" value="' . $option->id . '" id="option_' . $option->id . '">';
+            $html .= '<label class="form-check-label" for="option_' . $option->id . '">';
+            $html .= e($option->option_text);
+            $html .= '</label>';
+            $html .= '</div>';
+        }
+        
+        $html .= '<button type="submit" class="btn btn-canin mt-4" id="but_vote">Submit Vote</button>';
+        $html .= '</form>';
+        $html .= '<div id="poll-message" class="mt-3" style="display: none;"></div>';
+        $html .= '</div>';
+        $html .= '</div>';
+        
+        return $html;
+    }
 
+    /**
+     * Display poll results with user votes
+     */
+    public function show($id)
+    {
+        $poll = Poll::with('options')->findOrFail($id);
+        
+        // Get user votes with pagination
+        $userVotes = PollVote::with(['user', 'option'])
+            ->where('poll_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->paginate(20);
+        
+        $totalVotes = $poll->votes()->count();
+        $correctVotes = PollVote::where('poll_id', $id)
+            ->where('is_correct', true)
+            ->count();
+        $incorrectVotes = $totalVotes - $correctVotes;
+        
+        return view('admin.polls.show', compact('poll', 'userVotes', 'totalVotes', 'correctVotes', 'incorrectVotes'));
+    }
 
-/**
+    /**
      * Remove the specified poll.
      */
     public function destroy($id)
@@ -283,7 +292,7 @@ public function show($id)
             
             // If this was active, broadcast deactivation
             if ($poll->is_active) {
-                broadcast(new PollStatusChanged(null))->toOthers();
+                broadcast(new PollStatusChanged('inactive', null, null))->toOthers();
             }
             
             $poll->delete();
@@ -297,9 +306,35 @@ public function show($id)
             Log::error('Error deleting poll: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to delete poll'
+                'message' => 'Failed to delete poll: ' . $e->getMessage()
             ], 500);
         }
     }
 
+    /**
+     * Check active poll (for AJAX polling fallback)
+     */
+    public function checkActivePoll()
+    {
+        $activePoll = Poll::with('options')
+            ->where('is_active', true)
+            ->first();
+        
+        if ($activePoll) {
+            $pollHtml = $this->generatePollHtml($activePoll);
+            return response()->json([
+                'has_poll' => true,
+                'poll' => [
+                    'id' => $activePoll->id,
+                    'question' => $activePoll->question,
+                    'html' => $pollHtml
+                ]
+            ]);
+        }
+        
+        return response()->json([
+            'has_poll' => false,
+            'message' => 'NO_POLL_ACTIVE'
+        ]);
+    }
 }

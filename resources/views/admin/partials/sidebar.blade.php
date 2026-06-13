@@ -26,22 +26,16 @@
           <div class="sb-nav-link-icon"><i class="fas fa-calendar-alt"></i></div>
           Previous Sessions
         </a>
-
-        @if(Auth::user()->is_admin)
-        <a class="nav-link {{ request()->routeIs('admin.visitors.*') ? 'active' : '' }}" href="{{ route('admin.visitors.index') }}">
-          <div class="sb-nav-link-icon"><i class="fas fa-user"></i></div>
-          Unique Visitors
-        </a>
-
-        <a class="nav-link {{ request()->routeIs('admin.certificates.*') ? 'active' : '' }}" href="{{ route('admin.certificates.index') }}">
-          <div class="sb-nav-link-icon"><i class="fas fa-award"></i></div>
-          Participation Certificate
-        </a>
-
-        <a class="nav-link {{ request()->routeIs('admin.admins.*') ? 'active' : '' }}" href="{{ route('admin.admins.index') }}">
-          <div class="sb-nav-link-icon"><i class="fas fa-user-shield"></i></div>
-          Admin User
-        </a>
+        <a class="nav-link {{ request()->routeIs('admin.announcements.*') ? 'active' : '' }}" href="{{ route('admin.announcements.index') }}">
+  <div class="sb-nav-link-icon"><i class="fas fa-bullhorn"></i></div>
+  Announcements
+</a>
+        <!-- Only show Admin User link for super admins -->
+        @if(Auth::guard('admin')->user() && Auth::guard('admin')->user()->isSuperAdmin())
+          <a class="nav-link {{ request()->routeIs('admin.admins.*') ? 'active' : '' }}" href="{{ route('admin.admins.index') }}">
+            <div class="sb-nav-link-icon"><i class="fas fa-user-shield"></i></div>
+            Admin Users
+          </a>
         @endif
       </div>
     </div>

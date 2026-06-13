@@ -1,28 +1,29 @@
 <?php
-// app/Events/PollStatusChanged.php
 
 namespace App\Events;
 
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class PollStatusChanged implements ShouldBroadcast
+class PollStatusChanged implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $message;
+    public $status;
     public $pollHtml;
+    public $pollData;
 
     /**
      * Create a new event instance.
      */
-    public function __construct($message, $pollHtml = null)
+    public function __construct($status, $pollHtml = null, $pollData = null)
     {
-        $this->message = $message;
+        $this->status = $status;
         $this->pollHtml = $pollHtml;
+        $this->pollData = $pollData;
     }
 
     /**
@@ -39,5 +40,18 @@ class PollStatusChanged implements ShouldBroadcast
     public function broadcastAs(): string
     {
         return 'poll-status-changed';
+    }
+
+    /**
+     * Get the data to broadcast.
+     */
+    public function broadcastWith(): array
+    {
+        return [
+            'status' => $this->status,
+            'poll_html' => $this->pollHtml,
+            'poll_data' => $this->pollData,
+            'timestamp' => now()->toDateTimeString()
+        ];
     }
 }

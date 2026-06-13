@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\CertificateMail;
 use App\Events\PollStatusChanged;
-use App\Models\LoginDetail;
+use App\Models\LoginDetails;
 
 class PageController extends Controller
 {
@@ -294,47 +294,53 @@ private function getAvailableFont()
     public function getQuestions(Request $request)
 {
     try {
-        // Fetch recent questions (last 50, ordered by newest first)
         $questions = Question::with('user')
             ->orderBy('created_at', 'desc')
             ->limit(50)
             ->get();
         
         if ($questions->isEmpty()) {
-            return '<li class="text-center text-muted">No questions asked yet.</li>';
+            return '<div class="text-center text-muted p-4">No questions asked yet.</div>';
         }
         
         $html = '';
         foreach ($questions as $question) {
-            $userName = $question->user ? $question->user->name : 'Anonymous';
-            $questionText = htmlspecialchars($question->question_text);
+            $userName = $question->user ? ($question->user->full_name ?? $question->user->name ?? 'Anonymous') : 'Anonymous';
+            $questionText = htmlspecialchars($question->question_text ?? $question->question_input);
             $askedAt = $question->created_at->diffForHumans();
             
-            $html .= '<li class="message">';
+            $html .= '<div class="question-item mb-3">';
             $html .= '<div class="message-bubble">';
+            $html .= '<div class="question-box">';
             $html .= '<div class="message-header">';
-            $html .= '<strong>' . $userName . '</strong>';
-            $html .= '<span class="message-time">' . $askedAt . '</span>';
+            $html .= '<strong><i class="fas fa-user"></i> ' . $userName . '</strong>';
+            $html .= '<span class="message-time"><i class="far fa-clock"></i> ' . $askedAt . '</span>';
             $html .= '</div>';
             $html .= '<div class="message-text">' . nl2br($questionText) . '</div>';
+            $html .= '</div>';
             
             // Show answer if answered
             if ($question->is_answered && $question->answer_text) {
-                $html .= '<div class="answer-box mt-2 pt-2 border-top">';
-                $html .= '<small class="text-muted"><strong>Answer:</strong></small>';
+                $answeredAt = $question->answered_at ? $question->answered_at->diffForHumans() : $askedAt;
+                $html .= '<div class="answer-box mt-2 pt-2">';
+                $html .= '<div class="answer-label">';
+                $html .= '<i class="fas fa-reply-all text-success"></i>';
+                $html .= '<strong class="text-success">Answer:</strong>';
+                $html .= '<span class="message-time ms-2">' . $answeredAt . '</span>';
+                $html .= '</div>';
                 $html .= '<div class="answer-text">' . nl2br(htmlspecialchars($question->answer_text)) . '</div>';
                 $html .= '</div>';
             }
             
             $html .= '</div>';
-            $html .= '</li>';
+            $html .= '</div>';
         }
         
         return $html;
         
     } catch (\Exception $e) {
         \Log::error('Error fetching questions: ' . $e->getMessage());
-        return '<li class="text-center text-danger">Error loading questions. Please refresh.</li>';
+        return '<div class="text-center text-danger p-4">Error loading questions. Please refresh.</div>';
     }
 }
 
@@ -351,25 +357,54 @@ public function checkPoll(Request $request)
         }
         
         $user = Auth::user();
+        
+        // Debug: Log user info
+        Log::info('Check poll - User: ', ['user_id' => $user ? $user->id : 'Not logged in']);
+        
+        // Check if user is logged in
+        if (!$user) {
+            // User not logged in, show vote form or login message
+            $html = '<div class="mb-4">';
+            $html .= '<h4 class="text-danger poll-title">' . e($activePoll->question) . '</h4>';
+            $html .= '<div class="alert alert-warning">Please login to vote in this poll.</div>';
+            $html .= '</div>';
+            
+            return response()->json([
+                'has_poll' => true,
+                'poll' => [
+                    'id' => $activePoll->id,
+                    'html' => $html
+                ]
+            ]);
+        }
+        
+        // Check if user has voted - FIXED: Use poll_id directly
         $hasVoted = PollVote::where('poll_id', $activePoll->id)
             ->where('user_id', $user->id)
             ->exists();
+        
+        // Debug: Log vote status
+        Log::info('Poll vote status', [
+            'poll_id' => $activePoll->id,
+            'user_id' => $user->id,
+            'has_voted' => $hasVoted
+        ]);
         
         $totalVotes = $activePoll->options()->sum('vote_count');
         
         $html = '<div class="mb-4">';
         
         if (!$hasVoted) {
-            // Show vote form - WITHOUT revealing correct answer
+            // Show vote form
             $html .= '<h4 class="text-danger poll-title">' . e($activePoll->question) . '</h4>';
             $html .= '<form id="poll-form" method="post">';
+            $html .= '<input type="hidden" name="poll_id" value="' . $activePoll->id . '">';
             
             foreach ($activePoll->options as $option) {
                 $html .= '<div class="form-check mb-2">';
                 $html .= '<label class="form-check-label">';
                 $html .= '<input type="radio" class="form-check-input" name="poll" value="' . $option->id . '">';
                 $html .= e($option->option_text);
-                // REMOVED: Don't show correct answer badge before voting
                 $html .= '<i class="input-helper"></i>';
                 $html .= '</label>';
                 $html .= '</div>';
@@ -378,32 +413,33 @@ public function checkPoll(Request $request)
             $html .= '<button type="submit" class="btn btn-canin mt-4" id="but_vote">Vote</button>';
             $html .= '</form>';
         } else {
-            // Show results with correct answer highlighted (ONLY after voting)
+            // User has already voted - Show results
             $userVote = PollVote::where('poll_id', $activePoll->id)
                 ->where('user_id', $user->id)
                 ->first();
             
             $html .= '<h4 class="text-danger poll-title">' . e($activePoll->question) . '</h4>';
             
-            // Show if user was correct
+            // Show result message
             if ($userVote && $userVote->is_correct) {
-                $html .= '<div class="alert alert-success mb-3">✓ You selected the correct answer!</div>';
+                $html .= '<div class="alert alert-success mb-3"><i class="fas fa-check-circle"></i> Congratulations! You selected the correct answer!</div>';
             } elseif ($userVote && !$userVote->is_correct) {
                 $correctOption = $activePoll->options->where('is_correct', true)->first();
                 $correctAnswerText = $correctOption ? e($correctOption->option_text) : 'Unknown';
-                $html .= '<div class="alert alert-info mb-3">ℹ Your answer was incorrect. The correct answer is: <strong>' . $correctAnswerText . '</strong></div>';
+                $html .= '<div class="alert alert-info mb-3"><i class="fas fa-info-circle"></i> Your answer was incorrect. The correct answer is: <strong>' . $correctAnswerText . '</strong></div>';
             }
             
             $html .= '<div class="poll-results">';
+            $html .= '<p class="text-muted mb-3">Poll Results:</p>';
             
             $colors = ['#6993ff', '#008080', '#e3242b', '#ffbd59', '#050357'];
             $colorIndex = 0;
             
             foreach ($activePoll->options as $option) {
-                $percentage = $totalVotes > 0 ? round(($option->vote_count / $totalVotes) * 100, 2) : 0;
+                $percentage = $totalVotes > 0 ? round(($option->vote_count / $totalVotes) * 100) : 0;
                 $bgColor = $colors[$colorIndex % count($colors)];
                 
-                // Highlight correct answer (only shown after voting)
+                // Highlight correct answer
                 $isCorrectOption = $option->is_correct;
                 $correctBadge = $isCorrectOption ? ' <span class="badge bg-success ms-2"><i class="fas fa-check"></i> Correct Answer</span>' : '';
                 
@@ -413,18 +449,27 @@ public function checkPoll(Request $request)
                     $userSelectedBadge = ' <span class="badge bg-primary ms-2"><i class="fas fa-user-check"></i> Your Answer</span>';
                 }
                 
-                $html .= '<div class="mt-3"><strong>' . e($option->option_text) . $correctBadge . $userSelectedBadge . '</strong></div>';
-                $html .= '<div class="progress mt-1 mb-2" style="height: 25px;">';
-                $html .= '<div class="progress-bar progress-bar-striped" role="progressbar" ';
+                $html .= '<div class="mb-3">';
+                $html .= '<div class="d-flex justify-content-between mb-1">';
+                $html .= '<strong>' . e($option->option_text) . $correctBadge . $userSelectedBadge . '</strong>';
+                $html .= '<span>' . $percentage . '%</span>';
+                $html .= '</div>';
+                $html .= '<div class="progress" style="height: 30px;">';
+                $html .= '<div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" ';
                 $html .= 'style="width: ' . $percentage . '%; background-color: ' . $bgColor . ';" ';
                 $html .= 'aria-valuenow="' . $percentage . '" aria-valuemin="0" aria-valuemax="100">';
-                $html .= $percentage . '%</div>';
+                $html .= $option->vote_count . ' votes';
+                $html .= '</div>';
+                $html .= '</div>';
                 $html .= '</div>';
                 
                 $colorIndex++;
             }
             
-            $html .= '<div class="mt-3 text-muted">Total votes: ' . $totalVotes . '</div>';
+            $html .= '<div class="mt-3 pt-2 border-top">';
+            $html .= '<div class="text-muted">Total votes: ' . $totalVotes . '</div>';
+            $html .= '<div class="text-muted small mt-1"><i class="fas fa-chart-bar"></i> You have already voted in this poll.</div>';
+            $html .= '</div>';
             $html .= '</div>';
         }
         
@@ -449,6 +494,11 @@ public function submitVote(Request $request)
     try {
         $optionId = $request->poll ?: $request->option_id;
         
+        \Log::info('Submit vote request', [
+            'option_id' => $optionId,
+            'request_data' => $request->all()
+        ]);
+        
         // Find the option with poll relationship
         $option = PollOption::with('poll')->find($optionId);
         if (!$option) {
@@ -457,25 +507,36 @@ public function submitVote(Request $request)
         
         $user = Auth::user();
         
-        // Check if already voted
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Please login to vote']);
+        }
+        
+        // Check if already voted - FIXED: Check properly
         $existingVote = PollVote::where('poll_id', $option->poll_id)
             ->where('user_id', $user->id)
-            ->exists();
+            ->first();
             
         if ($existingVote) {
-            return response()->json(['success' => false, 'message' => 'You have already voted']);
+            return response()->json(['success' => false, 'message' => 'You have already voted in this poll']);
         }
         
         // Check if this is the correct answer
-        $isCorrect = $option->is_correct == true;
+        $isCorrect = ($option->is_correct == 1 || $option->is_correct === true);
         
         // Save vote
         $option->increment('vote_count');
         
-        PollVote::create([
+        $vote = PollVote::create([
             'poll_id' => $option->poll_id,
             'poll_option_id' => $option->id,
             'user_id' => $user->id,
+            'is_correct' => $isCorrect
+        ]);
+        
+        \Log::info('Vote saved successfully', [
+            'vote_id' => $vote->id,
+            'user_id' => $user->id,
+            'poll_id' => $option->poll_id,
             'is_correct' => $isCorrect
         ]);
         
@@ -487,7 +548,7 @@ public function submitVote(Request $request)
         
     } catch (\Exception $e) {
         Log::error('Error submitting vote: ' . $e->getMessage());
-        return response()->json(['success' => false, 'message' => 'Error submitting vote']);
+        return response()->json(['success' => false, 'message' => 'Error submitting vote: ' . $e->getMessage()]);
     }
 }
 
@@ -706,13 +767,13 @@ public function trackLogin(Request $request)
         }
 
         // Check if there's an active session without logout
-        $activeSession = LoginDetail::where('user_id', $user->id)
+        $activeSession = LoginDetails::where('user_id', $user->id)
             ->whereNull('logout_time')
             ->first();
 
         // If no active session, create new login record
         if (!$activeSession) {
-            LoginDetail::create([
+            LoginDetails::create([
                 'user_id' => $user->id,
                 'login_time' => now(),
                 'logout_time' => null
@@ -751,13 +812,13 @@ public function trackActivity(Request $request)
         ]);
 
         // Get active login session
-        $activeSession = LoginDetail::where('user_id', $user->id)
+        $activeSession = LoginDetails::where('user_id', $user->id)
             ->whereNull('logout_time')
             ->first();
 
         // If no active session, create one
         if (!$activeSession) {
-            LoginDetail::create([
+            LoginDetails::create([
                 'user_id' => $user->id,
                 'login_time' => now(),
                 'logout_time' => null
@@ -771,7 +832,7 @@ public function trackActivity(Request $request)
                 ]);
                 
                 // Create new session
-                LoginDetail::create([
+                LoginDetails::create([
                     'user_id' => $user->id,
                     'login_time' => now(),
                     'logout_time' => null
@@ -784,7 +845,7 @@ public function trackActivity(Request $request)
             ->update(['is_online' => false]);
 
         // Close sessions for users who haven't had activity in 5+ minutes
-        $inactiveSessions = LoginDetail::whereNull('logout_time')
+        $inactiveSessions = LoginDetails::whereNull('logout_time')
             ->where('login_time', '<', now()->subMinutes(5))
             ->get();
 
@@ -824,7 +885,7 @@ public function trackLogout(Request $request)
         
         if ($user) {
             // Update active session with logout time
-            $activeSession = LoginDetail::where('user_id', $user->id)
+            $activeSession = LoginDetails::where('user_id', $user->id)
                 ->whereNull('logout_time')
                 ->first();
 
